@@ -1,0 +1,128 @@
+octavia
+  octobanana's customizable text-based audio visualization interactive
+  application.
+
+Usage
+  octavia
+  octavia [--colour=<on|off|auto>] -h|--help
+  octavia [--colour=<on|off|auto>] -v|--version
+  octavia [--colour=<on|off|auto>] --license
+
+Options
+  --colour=<on|off|auto> [auto]
+    Print the program output with colour either on, off, or auto based on if
+    stdout is a tty, the default value is 'auto'.
+  -h, --help
+    Print the help output.
+  --license
+    Print the program license.
+  -v, --version
+    Print the program version.
+
+Key Bindings
+  <ctrl-c>
+    quit the program
+  <ctrl-z>
+    suspend the program
+  <ctrl-l>
+    force screen redraw
+  ?
+    show key bindings
+  q
+    quit the program
+  w
+    increase width of bars/peaks
+  W
+    decrease width of bars/peaks
+  e
+    increase space between bars/peaks
+  E
+    decrease space between bars/peaks
+  r
+    toggle low-high/high-low order of bars/peaks
+  t
+    toggle left/right channel order
+  a
+    toggle vertical/horizontal layout
+  s
+    toggle mono/stereo audio capture
+  d
+    toggle shared/stacked stereo layout
+  f
+    toggle flipped layout
+  g
+    next filter type none/sgm/sg
+  G
+    prev filter type none/sgm/sg
+  z
+    toggle draw bars
+  Z
+    toggle always draw bars
+  x
+    toggle draw peaks
+  X
+    toggle always draw peaks
+  c
+    toggle enable/disable colour
+  C
+    toggle enable/disable alpha compositing
+  v
+    randomize colour
+  V
+    toggle enable/disable colour shift
+  b
+    toggle full/fixed bar height
+  h
+    increase high pass hz threshold
+  H
+    decrease high pass hz threshold
+  j
+    increase minimum db threshold
+  J
+    decrease minimum db threshold
+  k
+    decrease maximum db threshold
+  K
+    increase maximum db threshold
+  l
+    decrease low pass hz threshold
+  L
+    increase low pass hz threshold
+  o
+    toggle enable/disable debug overlay
+  p
+    toggle start/stop audio capture
+  ??????????
+    secret 1
+  ??????????
+    secret 2
+
+Examples
+  octavia
+    run the program
+  octavia --help --colour=off
+    print the help output, without colour
+  octavia --help
+    print the help output
+  octavia --version
+    print the program version
+  octavia --license
+    print the program license
+
+Exit Codes
+  0
+    normal
+  1
+    error
+
+Meta
+  The version format is 'major.minor.patch (day.month.year)'.
+
+Repository
+  https://github.com/octobanana/octavia.git
+
+Homepage
+  https://octobanana.com/software/octavia
+
+Author
+  Brett Robinson (octobanana) <octobanana.dev@gmail.com>
