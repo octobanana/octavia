@@ -1,0 +1,4 @@
+*.*.sw*
+build
+dev
+.gdb_history
