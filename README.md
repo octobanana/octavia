@@ -76,7 +76,7 @@ Press `z` or `x` to toggle bars/peaks on/off.
 Press `g` to cycle through available smoothing filters.  
 Press `h` or `H` to change the minimum frequency threshold.  
 Press `j` or `J` to change the minimum decibel threshold.  
-Press `j` or `J` to change the maximum decibel threshold.  
+Press `k` or `K` to change the maximum decibel threshold.  
 Press `l` or `L` to change the maximum frequency threshold.  
 
 ## Pre-Build
