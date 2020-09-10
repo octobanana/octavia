@@ -267,7 +267,6 @@ void Window::render() {
         }
 
         if (diff_attr) {
-          diff_type = true;
           diff_fg = true;
           diff_bg = true;
           style.attr = cell.style.attr;
