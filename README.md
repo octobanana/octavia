@@ -41,6 +41,7 @@ __octavia__ is an audio visualizer for the terminal.
 * True colour support
 * Low-high or high-low frequency ordering
 * Left/right stereo channel layout can be swapped
+* Configurable frames per second (fps)
 * Configurable bar width and spacing
 * Configurable min/max decibel thresholds
 * Configurable min/max frequency thresholds

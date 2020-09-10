@@ -88,6 +88,10 @@ Key Bindings
     decrease low pass hz threshold
   L
     increase low pass hz threshold
+  i
+    increase fps
+  I
+    decrease fps
   o
     toggle enable/disable debug overlay
   p

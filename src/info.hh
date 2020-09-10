@@ -103,6 +103,8 @@ inline void program_init(OB::Parg& pg) {
     {"K", "increase maximum db threshold"},
     {"l", "decrease low pass hz threshold"},
     {"L", "increase low pass hz threshold"},
+    {"i", "increase fps"},
+    {"I", "decrease fps"},
     {"o", "toggle enable/disable debug overlay"},
     {"p", "toggle start/stop audio capture"},
     {"??????????", "secret 1"},
