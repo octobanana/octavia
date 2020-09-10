@@ -147,12 +147,12 @@ public:
       Release_right,
       Release,
       Scroll_up,
-      Scroll_down
+      Scroll_down,
     };
     // enum Action {
     //   Press = 0,
     //   Release,
-    //   Scroll
+    //   Scroll,
     // };
     // enum Direction {
     //   up = 0,
@@ -161,7 +161,7 @@ public:
     // enum Btn {
     //   left = 0,
     //   middle,
-    //   right
+    //   right,
     // };
     struct Pos {
       std::size_t x {0};
@@ -333,8 +333,7 @@ private:
                   }
                 }
               }
-              else
-              {
+              else {
                 switch (_buf[_pos_read + 2]) {
                   // case 'I': {
                   //   // TODO add Event Ctx variant type
