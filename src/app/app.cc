@@ -379,10 +379,12 @@ bool App::on_read(Read::Key& ctx) {
       kill(getpid(), SIGINT);
       return true;
     }
+
     case OB::Term::ctrl_key('z'): {
       kill(getpid(), SIGTSTP);
       return true;
     }
+
     case OB::Term::ctrl_key('l'): {
       kill(getpid(), SIGWINCH);
       return true;
