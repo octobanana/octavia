@@ -290,38 +290,46 @@ private:
                 if (_pos_read + 3 >= _buf_size) {
                   goto read_more;
                 }
-                if (_buf[_pos_read + 3] == '~') {
-                  switch (_buf[_pos_read + 2]) {
-                    case '1': {
-                      _ctx = Key{{&_buf[_pos_read], 4}, Key::Home};
-                      break;
+                switch (_buf[_pos_read + 3]) {
+                  case '~': {
+                    switch (_buf[_pos_read + 2]) {
+                      case '1': {
+                        _ctx = Key{{&_buf[_pos_read], 4}, Key::Home};
+                        break;
+                      }
+                      case '2': {
+                        _ctx = Key{{&_buf[_pos_read], 4}, Key::Insert};
+                        break;
+                      }
+                      case '3': {
+                        _ctx = Key{{&_buf[_pos_read], 4}, Key::Delete};
+                        break;
+                      }
+                      case '4': {
+                        _ctx = Key{{&_buf[_pos_read], 4}, Key::End};
+                        break;
+                      }
+                      case '5': {
+                        _ctx = Key{{&_buf[_pos_read], 4}, Key::Page_up};
+                        break;
+                      }
+                      case '6': {
+                        _ctx = Key{{&_buf[_pos_read], 4}, Key::Page_down};
+                        break;
+                      }
+                      default: {
+                        _ctx = Null{{&_buf[_pos_read], 4}};
+                        break;
+                      }
                     }
-                    case '2': {
-                      _ctx = Key{{&_buf[_pos_read], 4}, Key::Insert};
-                      break;
-                    }
-                    case '3': {
-                      _ctx = Key{{&_buf[_pos_read], 4}, Key::Delete};
-                      break;
-                    }
-                    case '4': {
-                      _ctx = Key{{&_buf[_pos_read], 4}, Key::End};
-                      break;
-                    }
-                    case '5': {
-                      _ctx = Key{{&_buf[_pos_read], 4}, Key::Page_up};
-                      break;
-                    }
-                    case '6': {
-                      _ctx = Key{{&_buf[_pos_read], 4}, Key::Page_down};
-                      break;
-                    }
-                    default: {
-                      _ctx = Null{{&_buf[_pos_read], 4}};
-                      break;
-                    }
+                    _pos_read += 4;
+                    break;
                   }
-                  _pos_read += 4;
+                  default: {
+                    _ctx = Null{{&_buf[_pos_read], 4}};
+                    _pos_read += 4;
+                    break;
+                  }
                 }
               }
               else
