@@ -524,6 +524,22 @@ bool App::on_read(Read::Key& ctx) {
       return true;
     }
 
+    case 'i': {
+      _fps = clamp(_fps + 2, 10, 120);
+      _tick = static_cast<Tick>(1000000000 / _fps);
+      _interval = (1000.0 / _fps) * 0.2;
+      _rec.process_interval(sf::milliseconds(_interval));
+      return true;
+    }
+
+    case 'I': {
+      _fps = clamp(_fps - 2, 10, 120);
+      _tick = static_cast<Tick>(1000000000 / _fps);
+      _interval = (1000.0 / _fps) * 0.2;
+      _rec.process_interval(sf::milliseconds(_interval));
+      return true;
+    }
+
     case 'o': {
       _overlay = ! _overlay;
       return true;
@@ -1575,7 +1591,7 @@ void App::draw_overlay() {
         "frequency "s + std::to_string(_high_pass) + ":"s + std::to_string(_low_pass)
         + " | decibels "s + std::to_string(static_cast<int>(_threshold_min)) + ":"s + std::to_string(static_cast<int>(_threshold_max))
         + " | filter "s + std::to_string(_filter)
-        + " | fps "s + std::to_string(_fps_actual)
+        + " | fps "s + std::to_string(_fps)
       };
       if (title.size() > _width) {title = title.substr(0, _width);}
       auto style = _color ? Style{Style::Bit_24, 0, OB::Prism::Hex("f0f0f0"), _cfg.bg} : Style{Style::Default, 0, {}, {}};
