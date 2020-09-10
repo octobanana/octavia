@@ -46,7 +46,7 @@ SOFTWARE.
 cmake_minimum_required (VERSION 3.8 FATAL_ERROR)
 
 set (OB_TARGET "octavia")
-set (OB_VERSION "0.1.0")
+set (OB_VERSION "0.1.1")
 set (OB_SOURCES
   src/main.cc
 
