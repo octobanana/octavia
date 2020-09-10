@@ -75,6 +75,7 @@ SOFTWARE.
 #include <optional>
 #include <algorithm>
 #include <functional>
+// #include <iostream>
 
 namespace OB::Belle {
 
@@ -233,10 +234,28 @@ private:
     return 0;
   }
 
+  // static std::string hex_encode(std::uint8_t const ch) {
+  //   char hex[3] {0};
+  //   if (ch & 0x80) {
+  //     std::snprintf(&hex[0], 3, "%02X", static_cast<unsigned int>(ch & 0xff));
+  //   }
+  //   else {
+  //     std::snprintf(&hex[0], 3, "%02X", static_cast<unsigned int>(ch));
+  //   }
+  //   return std::string(hex);
+  // }
+
   void read_impl(asio::yield_context yield) {
     try {
       _istream.async_wait(asio::posix::stream_descriptor::wait_read, yield);
       _buf_size += _istream.async_read_some(asio::buffer(&_buf[0] + _pos_write, _buf_max - _pos_write), yield);
+
+      // debug
+      // std::cerr << "KEY> ";
+      // for (std::size_t i = 0; i < _buf_size; ++i) {
+      //   std::cerr << hex_encode(_buf[i]) << " ";
+      // }
+      // std::cerr << "\n";
 
       std::size_t _pos_read {0};
       while (_pos_read < _buf_size) {
