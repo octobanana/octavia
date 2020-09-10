@@ -111,7 +111,8 @@ public:
       Delete,
       Insert,
       Page_up,
-      Page_down
+      Page_down,
+      Tab_shift,
     };
     inline static const std::unordered_map<std::string, char32_t> map {
       {"bell", Bell},
@@ -364,6 +365,11 @@ private:
                   }
                   case 'D': {
                     _ctx = Key{{&_buf[_pos_read], 3}, Key::Left};
+                    _pos_read += 3;
+                    break;
+                  }
+                  case 'Z': {
+                    _ctx = Key{{&_buf[_pos_read], 3}, Key::Tab_shift};
                     _pos_read += 3;
                     break;
                   }
