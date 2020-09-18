@@ -45,74 +45,10 @@ SOFTWARE.
 
 #include "app/filter.hh"
 
+#include "ob/ring.hh"
+
 namespace Filter
 {
-
-template<typename T>
-class Ring_Buffer {
-  using reference = typename std::vector<T>::reference;
-  using const_reference = typename std::vector<T>::const_reference;
-  using size_type = typename std::vector<T>::size_type;
-
-public:
-
-  Ring_Buffer(Ring_Buffer&&) = default;
-
-  Ring_Buffer(Ring_Buffer const&) = default;
-
-  explicit Ring_Buffer(size_type const size, T const& value = T()) : _buf(size, value) {
-  }
-
-  template<typename It>
-  Ring_Buffer(It begin, It end) : _buf(begin, end) {
-  }
-
-  Ring_Buffer(std::vector<T> const& buf) : _buf(buf) {
-  }
-
-  Ring_Buffer(std::vector<T>&& buf) : _buf(buf) {
-  }
-
-  Ring_Buffer(std::initializer_list<T> init) : _buf(init) {
-  }
-
-  ~Ring_Buffer() = default;
-
-  Ring_Buffer& operator=(Ring_Buffer&&) = default;
-
-  Ring_Buffer& operator=(Ring_Buffer const&) = default;
-
-  reference operator[](size_type const pos) {
-    return _buf[get_pos(pos)];
-  }
-
-  const_reference operator[](size_type const pos) const {
-    return _buf[get_pos(pos)];
-  }
-
-  size_type size() const noexcept {
-    return _buf.size();
-  }
-
-  reference push(T const& arg) {
-    reference ref = _buf[_index];
-    ref = arg;
-    increase_index();
-    return ref;
-  }
-
-private:
-  size_type get_pos(size_type const pos) const noexcept {
-    return (_index + pos) % _buf.size();
-  }
-
-  void increase_index() {
-    if (++_index >= _buf.size()) {_index = 0;}
-  }
-
-  std::size_t _index {0};
-  std::vector<T> _buf;
-};
 
 void savitzky_golay(std::vector<double>& bars, std::size_t size, std::size_t width, double const threshold) {
   if (size == 0 || width == 0) {return;}
@@ -120,7 +56,7 @@ void savitzky_golay(std::vector<double>& bars, std::size_t size, std::size_t wid
   auto const part = static_cast<std::size_t>(std::trunc(width / 2.0));
   if (part == 0) {return;}
 
-  Ring_Buffer<double> win {bars.begin(), bars.begin() + static_cast<long int>(width)};
+  OB::ring_vector<double> win {bars.begin(), bars.begin() + static_cast<long int>(width)};
   auto const c = 1.0 / (part * 2 + 1);
   auto const end = size - part;
 
