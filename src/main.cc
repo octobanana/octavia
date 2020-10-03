@@ -76,6 +76,65 @@ int main(int argc, char** argv) {
   try {
     App app {pg};
     app.run();
+
+    // TODO new api idea
+    {
+      // asio::io_context io {1};
+
+      // Cfg cfg;
+      // cfg.style.fg = Prism::Hex("f0f0f0");
+      // cfg.style.bg = Prism::Hex("1b1e24");
+
+      // App app {io, cfg};
+
+      // Tui tui {io};
+      // tui.fps(30);
+      // tui.win.size = {0, 0};
+      // tui.win.style_base = Style{Style::Default, Style::Null, {}, {}};
+
+      // tui.on_error([&](auto const& ec) {
+      //   // std::cerr << "Error: " << ec << "\n";
+      //   io.stop();
+      //   app.stop();
+      //   tui.stop();
+      // });
+
+      // tui.on_signal({SIGINT, SIGTERM}, [&](int sig) {
+      //   // std::cerr << "Signal: " << Belle::Signal::str(sig) << "\n";
+      //   io.stop();
+      //   app.stop();
+      //   tui.stop();
+      // });
+
+      // tui.on_pause([&]() {
+      //   app.stop();
+      //   tui.stop();
+      // });
+
+      // tui.on_continue([&]() {
+      //   app.run();
+      //   tui.run();
+      // });
+
+      // tui.on_resize([&](Size const& size) {
+      //   tui.win.size = size;
+      // });
+
+      // tui.on_mouse([&](Read::Mouse const& ctx) {
+      // });
+
+      // tui.on_key([&](Read::Key const& ctx) {
+      // });
+
+      // tui.on_tick([&](double dt) {
+      //   app.update(dt);
+      //   app.draw(tui.)
+      // });
+
+      // app.run();
+      // tui.run();
+      // io.run();
+    }
   }
   catch(std::exception const& e) {
     std::cerr
