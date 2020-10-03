@@ -86,11 +86,6 @@ almost_equal(T x, T y, int ulp = 2) {
 }
 
 template<typename T>
-constexpr T lerp(T const a, T const b, T const t) {
-  return a + (t * (b - a));
-}
-
-template<typename T>
 T clamp(T const val, T const min, T const max) {
   assert(!(max < min));
   if (val < min) {return min;}
@@ -142,6 +137,48 @@ T clampcf(T const val, T const min, T const max) {
     }
   }
   return val;
+}
+
+template<typename T, typename F>
+constexpr T lerp(T const a, T const b, F const t) {
+  return (a + (t * (b - a)));
+}
+
+template<typename T>
+OB::Prism::HSLA lerp(OB::Prism::HSLA a, OB::Prism::HSLA b, T t) {
+  OB::Prism::HSLA c;
+
+  // clockwise distance between a and b
+  // auto d = b.h() - a.h();
+  // if (d == 0) {
+  //   c = a;
+  // }
+  // else {
+  //   c.h(clampc(lerp(0, clampc(b.h() - a.h(), 0, 359), t) + a.h(), 0, 359));
+  // }
+
+  // shortest distance between a and b
+  auto d = b.h() - a.h();
+  if (std::abs(d) > 180) {
+    if (d < 0) {
+      d += 360;
+    }
+    else {
+      d -= 360;
+    }
+  }
+  c.h(static_cast<int>((a.h() + (t * d)) + 360) % 360);
+
+  if (a.h() > b.h()) {
+    t = 1.0 - t;
+    std::swap(a, b);
+  }
+
+  c.s(lerp(a.s(), b.s(), t));
+  c.l(lerp(a.l(), b.l(), t));
+  c.a(lerp(a.a(), b.a(), t));
+
+  return c;
 }
 
 template<typename T>
