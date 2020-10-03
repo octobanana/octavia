@@ -280,7 +280,9 @@ void App::screen_init() {
   << aec::screen_clear
   << aec::cursor_home
   << std::flush;
-  _term_mode.set_raw();
+  if (!_raw_output) {
+    _term_mode->set_raw();
+  }
 }
 
 void App::screen_deinit() {
@@ -289,7 +291,9 @@ void App::screen_deinit() {
   << aec::screen_pop
   << aec::cursor_show
   << std::flush;
-  _term_mode.set_cooked();
+  if (!_raw_output) {
+    _term_mode->set_cooked();
+  }
 }
 
 void App::await_tick() {
@@ -388,6 +392,8 @@ bool App::on_read(Read::Mouse& ctx) {
 }
 
 bool App::on_read(Read::Key& ctx) {
+  // TODO add keybind to lock input
+  // add a timed prompt info string so that a message describing how to exit locked input mode can be shown on keypress when locked
   // if (ctx.ch == OB::Term::ctrl_key(' ')) {
   //   _lock_input = !_lock_input;
   // }
@@ -412,16 +418,9 @@ bool App::on_read(Read::Key& ctx) {
           _code[8].first == 'b' &&
           _code[9].first == 'a'
           ) {
-
-        _hue_factor = 359.0;
-        if (!_color) {
-          _color = true;
-          _style_base = Style{Style::Bit_24, Style::Null, _cfg.bg, _cfg.bg};
-          _win.style_base = _style_base;
-          _win.refresh();
-        }
+        _draw_peak = true;
+        _peak_reverse = true;
       }
-
       else if (
           _code[0].first == Key::Up &&
           _code[1].first == Key::Down &&
@@ -434,9 +433,91 @@ bool App::on_read(Read::Key& ctx) {
           _code[8].first == '0' &&
           _code[9].first == '8'
           ) {
+        {
+          _fps = 60;
+          _interval = (1000.0 / _fps) * 0.2;
+          _mono = false;
+          _size = 2048;
+          _sample_rate = 16000;
+          _low_pass = 2200;
+          _high_pass = 20;
+          _threshold_min = -54.0;
+          _threshold_max = -24.0;
+          _sort_log = false;
+          _octave_scale = 24;
+          _filter = Filter_Type::sg;
+          _filter_threshold = 0.10;
+          _filter_size = 3;
 
-        _draw_peak = true;
-        _peak_reverse = true;
+          _overlay = false;
+
+          _bar_swap = false;
+          _block_flip = false;
+          _block_stack = true;
+          _block_reverse = false;
+          _block_vertical = true;
+
+          _block_width_dynamic = false;
+          _block_height_dynamic = true;
+          _block_height_full = true;
+          _block_height_linear = true;
+          _block_width = 1.0;
+          _block_height = 0.25;
+          _block_padding = 0;
+
+          _draw_freq = true;
+          _draw_freq_always = false;
+          _speed_freq_unique = true;
+          _speed_freq_up = 0.999999;
+          _speed_freq_down = 0.999999;
+
+          _draw_peak = false;
+          _draw_peak_always = false;
+          _speed_peak_unique = false;
+          _speed_peak_down = 0.20;
+          _peak_reverse = false;
+
+          _color = true;
+          _alpha = false;
+          _alpha_blend = 0.3;
+          _cl_shift = 0.0;
+          _cl_swap = false;
+          _cl_gradient_x = true;
+          _cl_gradient_y = true;
+          _cfg.style.bg = OB::Prism::Hex("1b1e24");
+          _cfg.style.freq = OB::Prism::Hex("4feae7");
+          _cfg.style.freq2 = OB::Prism::Hex("f34b7d");
+          _cfg.style.freq3 = _cfg.style.freq2;
+          _cfg.style.freq4 = _cfg.style.freq;
+        }
+
+        {
+          _style_base = Style{Style::Bit_24, Style::Null, _cfg.style.bg, _cfg.style.bg};
+          _win.style_base = _style_base;
+          _win.refresh();
+
+          _tick = static_cast<Tick>(1000000000 / _fps);
+          _interval = (1000.0 / _fps) * 0.2;
+          _rec.process_interval(sf::milliseconds(_interval));
+
+          _rec.low_pass(_low_pass);
+          _rec.high_pass(_high_pass);
+
+          auto const recording = _rec.recording();
+          if (recording) {
+            _rec.stop();
+          }
+          // _channel = clampc(_channel + 1, static_cast<int>(Channel_Type::mono_mixed), static_cast<int>(Channel_Type::size - 1));
+          if (_mono) {
+            _rec.channels(1);
+          }
+          else {
+            _rec.channels(2);
+          }
+          if (recording) {
+            _rec.start();
+          }
+        }
       }
     }
   }
@@ -454,6 +535,117 @@ bool App::on_read(Read::Key& ctx) {
 
     case OB::Term::ctrl_key('l'): {
       kill(getpid(), SIGWINCH);
+      return true;
+    }
+
+    case '?': {
+      auto const recording = _rec.recording();
+      if (recording) {
+        _rec.stop();
+      }
+      _timer.cancel();
+      screen_deinit();
+
+      std::system(("$(which less) -Ri '+/Key Bindings' <<'EOF'\n" + _pg.help() + "EOF").c_str());
+
+      screen_init();
+      on_winch();
+      _tick_timer.clear();
+      _tick_begin = Clock::now();
+      await_tick();
+      if (recording) {
+        _rec.start();
+      }
+
+      return true;
+    }
+
+    case Key::Backspace: {
+      {
+        _fps = 30;
+        _interval = (1000.0 / _fps) * 0.2;
+        _mono = false;
+        _size = 2048;
+        _sample_rate = 16000;
+        _low_pass = 4000;
+        _high_pass = 40;
+        _threshold_min = -60.0;
+        _threshold_max = -20.0;
+        _sort_log = true;
+        _octave_scale = 24;
+        _filter = Filter_Type::none;
+        _filter_threshold = 0.10;
+        _filter_size = 3;
+
+        _overlay = false;
+
+        _bar_swap = false;
+        _block_flip = false;
+        _block_stack = true;
+        _block_reverse = false;
+        _block_vertical = true;
+
+        _block_width_dynamic = false;
+        _block_height_dynamic = true;
+        _block_height_full = true;
+        _block_height_linear = true;
+        _block_width = 1.0;
+        _block_height = 0.25;
+        _block_padding = 1;
+
+        _draw_freq = true;
+        _draw_freq_always = true;
+        _speed_freq_unique = true;
+        _speed_freq_up = 0.999999;
+        _speed_freq_down = 0.98;
+
+        _draw_peak = true;
+        _draw_peak_always = false;
+        _speed_peak_unique = false;
+        _speed_peak_down = 0.20;
+        _peak_reverse = false;
+
+        _color = false;
+        _alpha = false;
+        _alpha_blend = 0.3;
+        _cl_shift = 0.0;
+        _cl_swap = false;
+        _cl_gradient_x = true;
+        _cl_gradient_y = true;
+        _cfg.style.bg = OB::Prism::Hex("1b1e24");
+        _cfg.style.freq = OB::Prism::Hex("4feae7");
+        _cfg.style.freq2 = OB::Prism::Hex("f34b7d");
+        _cfg.style.freq3 = _cfg.style.freq2;
+        _cfg.style.freq4 = _cfg.style.freq;
+      }
+
+      {
+        _style_base = Style{Style::Bit_24, Style::Null, _cfg.style.bg, _cfg.style.bg};
+        _win.style_base = _style_base;
+        _win.refresh();
+
+        _tick = static_cast<Tick>(1000000000 / _fps);
+        _interval = (1000.0 / _fps) * 0.2;
+        _rec.process_interval(sf::milliseconds(_interval));
+
+        _rec.low_pass(_low_pass);
+        _rec.high_pass(_high_pass);
+
+        auto const recording = _rec.recording();
+        if (recording) {
+          _rec.stop();
+        }
+        // _channel = clampc(_channel + 1, static_cast<int>(Channel_Type::mono_mixed), static_cast<int>(Channel_Type::size - 1));
+        if (_mono) {
+          _rec.channels(1);
+        }
+        else {
+          _rec.channels(2);
+        }
+        if (recording) {
+          _rec.start();
+        }
+      }
       return true;
     }
 
@@ -489,6 +681,42 @@ bool App::on_read(Read::Key& ctx) {
 
     case 't': {
       _bar_swap = ! _bar_swap;
+      return true;
+    }
+
+    case 'y': {
+      _sort_log = ! _sort_log;
+      return true;
+    }
+
+    case 'i': {
+      _fps = clamp(_fps + 2, 10, 60);
+      _tick = static_cast<Tick>(1000000000 / _fps);
+      _interval = (1000.0 / _fps) * 0.2;
+      _rec.process_interval(sf::milliseconds(_interval));
+      return true;
+    }
+
+    case 'I': {
+      _fps = clamp(_fps - 2, 10, 60);
+      _tick = static_cast<Tick>(1000000000 / _fps);
+      _interval = (1000.0 / _fps) * 0.2;
+      _rec.process_interval(sf::milliseconds(_interval));
+      return true;
+    }
+
+    case 'o': {
+      _overlay = ! _overlay;
+      return true;
+    }
+
+    case 'p': {
+      if (_rec.recording()) {
+        _rec.stop();
+      }
+      else {
+        _rec.start();
+      }
       return true;
     }
 
@@ -536,6 +764,60 @@ bool App::on_read(Read::Key& ctx) {
       return true;
     }
 
+    case 'h': {
+      _high_pass = static_cast<std::size_t>(clamp(static_cast<int>(_high_pass) + 20, 20, static_cast<int>(_sample_rate) / 2));
+      if (static_cast<int>(_high_pass) > static_cast<int>(_low_pass)) {_low_pass = _high_pass;}
+      _rec.low_pass(_low_pass);
+      _rec.high_pass(_high_pass);
+      return true;
+    }
+
+    case 'H': {
+      _high_pass = static_cast<std::size_t>(clamp(static_cast<int>(_high_pass) - 20, 20, static_cast<int>(_sample_rate) / 2));
+      if (static_cast<int>(_high_pass) > static_cast<int>(_low_pass)) {_low_pass = _high_pass;}
+      _rec.low_pass(_low_pass);
+      _rec.high_pass(_high_pass);
+      return true;
+    }
+
+    case 'j': {
+      _threshold_min = clamp(_threshold_min + 2.0, -120.0, 0.0);
+      if (_threshold_min > _threshold_max) {_threshold_max = _threshold_min;}
+      return true;
+    }
+
+    case 'J': {
+      _threshold_min = clamp(_threshold_min - 2.0, -120.0, 0.0);
+      return true;
+    }
+
+    case 'k': {
+      _threshold_max = clamp(_threshold_max - 2.0, -120.0, 0.0);
+      if (_threshold_max < _threshold_min) {_threshold_min = _threshold_max;}
+      return true;
+    }
+
+    case 'K': {
+      _threshold_max = clamp(_threshold_max + 2.0, -120.0, 0.0);
+      return true;
+    }
+
+    case 'l': {
+      _low_pass = static_cast<std::size_t>(clamp(static_cast<int>(_low_pass) - 20, 20, static_cast<int>(_sample_rate) / 2));
+      if (static_cast<int>(_low_pass) < static_cast<int>(_high_pass)) {_high_pass = _low_pass;}
+      _rec.low_pass(_low_pass);
+      _rec.high_pass(_high_pass);
+      return true;
+    }
+
+    case 'L': {
+      _low_pass = static_cast<std::size_t>(clamp(static_cast<int>(_low_pass) + 20, 20, static_cast<int>(_sample_rate) / 2));
+      if (static_cast<int>(_low_pass) < static_cast<int>(_high_pass)) {_high_pass = _low_pass;}
+      _rec.low_pass(_low_pass);
+      _rec.high_pass(_high_pass);
+      return true;
+    }
+
     case 'z': {
       _draw_freq = ! _draw_freq;
       return true;
@@ -559,7 +841,7 @@ bool App::on_read(Read::Key& ctx) {
     case 'c': {
       _color = ! _color;
       if (_color) {
-        _style_base = Style{Style::Bit_24, Style::Null, _cfg.bg, _cfg.bg};
+        _style_base = Style{Style::Bit_24, Style::Null, _cfg.style.bg, _cfg.style.bg};
       }
       else {
         _style_base = Style{Style::Default, Style::Null, {}, {}};
@@ -575,9 +857,22 @@ bool App::on_read(Read::Key& ctx) {
     }
 
     case 'v': {
-      _cl_freq = OB::Prism::HSLA{random_range(0, 359), static_cast<float>(random_range(40, 90)), static_cast<float>(random_range(30, 70)), 1.0};
-      _cl_peak = _cl_freq;
-      _hue_factor = random_range(10, 60);
+      _cfg.style.freq = OB::Prism::HSLA{random_range(0, 359), static_cast<float>(random_range(40, 100)), static_cast<float>(random_range(20, 80)), 1.0};
+      _cfg.style.freq2 = OB::Prism::HSLA{clampc(_cfg.style.freq.h() + random_range(6, 120), 0, 359), static_cast<float>(random_range(50, 100)), static_cast<float>(random_range(30, 70)), 1.0};
+      // _cfg.style.freq2 = OB::Prism::HSLA{clampc(_cfg.style.freq.h() + random_range(30, 150), 0, 359), static_cast<float>(random_range(40, 100)), static_cast<float>(random_range(20, 80)), 1.0};
+
+      if (_cfg.style.freq.l() > _cfg.style.freq2.l()) {
+        std::swap(_cfg.style.freq, _cfg.style.freq2);
+      }
+
+      // TODO use 2 or 4 gradient colors
+      // maybe use fixed sat and lum
+      _cfg.style.freq3 = OB::Prism::HSLA{clampc(_cfg.style.freq2.h() + random_range(0, 30), 0, 359), static_cast<float>(clampcf(_cfg.style.freq2.s() + random_range(0, 20), 0.f, 100.f)), static_cast<float>(clampcf(_cfg.style.freq2.l() + random_range(0, 20), 0.f, 100.f)), 1.0};
+      _cfg.style.freq4 = OB::Prism::HSLA{clampc(_cfg.style.freq.h() + random_range(0, 30), 0, 359), static_cast<float>(clampcf(_cfg.style.freq.s() + random_range(0, 20), 0.f, 100.f)), static_cast<float>(clampcf(_cfg.style.freq.l() + random_range(0, 20), 0.f, 100.f)), 1.0};
+
+      // _cfg.style.freq3 = _cfg.style.freq2;
+      // _cfg.style.freq4 = _cfg.style.freq;
+
       return true;
     }
 
@@ -591,115 +886,46 @@ bool App::on_read(Read::Key& ctx) {
       return true;
     }
 
-    case 'i': {
-      _fps = clamp(_fps + 2, 10, 120);
-      _tick = static_cast<Tick>(1000000000 / _fps);
-      _interval = (1000.0 / _fps) * 0.2;
-      _rec.process_interval(sf::milliseconds(_interval));
+    case 'n': {
+      _cl_gradient_x = ! _cl_gradient_x;
       return true;
     }
 
-    case 'I': {
-      _fps = clamp(_fps - 2, 10, 120);
-      _tick = static_cast<Tick>(1000000000 / _fps);
-      _interval = (1000.0 / _fps) * 0.2;
-      _rec.process_interval(sf::milliseconds(_interval));
+    case 'N': {
+      _cl_gradient_y = ! _cl_gradient_y;
       return true;
     }
 
-    case 'o': {
-      _overlay = ! _overlay;
+    case 'm': {
+      swap_colors();
       return true;
     }
 
-    case 'p': {
-      if (_rec.recording()) {
-        _rec.stop();
-      }
-      else {
-        _rec.start();
-      }
-      return true;
-    }
-
-    case 'h': {
-      _high_pass = static_cast<std::size_t>(clamp(static_cast<int>(_high_pass) + 20, 20, static_cast<int>(_sample_rate) / 2));
-      if (static_cast<int>(_high_pass) > static_cast<int>(_low_pass)) {_low_pass = _high_pass;}
-      _rec.low_pass(_low_pass);
-      _rec.high_pass(_high_pass);
-      return true;
-    }
-
-    case 'H': {
-      _high_pass = static_cast<std::size_t>(clamp(static_cast<int>(_high_pass) - 20, 20, static_cast<int>(_sample_rate) / 2));
-      if (static_cast<int>(_high_pass) > static_cast<int>(_low_pass)) {_low_pass = _high_pass;}
-      _rec.low_pass(_low_pass);
-      _rec.high_pass(_high_pass);
-      return true;
-    }
-
-    case 'l': {
-      _low_pass = static_cast<std::size_t>(clamp(static_cast<int>(_low_pass) - 20, 20, static_cast<int>(_sample_rate) / 2));
-      if (static_cast<int>(_low_pass) < static_cast<int>(_high_pass)) {_high_pass = _low_pass;}
-      _rec.low_pass(_low_pass);
-      _rec.high_pass(_high_pass);
-      return true;
-    }
-
-    case 'L': {
-      _low_pass = static_cast<std::size_t>(clamp(static_cast<int>(_low_pass) + 20, 20, static_cast<int>(_sample_rate) / 2));
-      if (static_cast<int>(_low_pass) < static_cast<int>(_high_pass)) {_high_pass = _low_pass;}
-      _rec.low_pass(_low_pass);
-      _rec.high_pass(_high_pass);
-      return true;
-    }
-
-    case 'j': {
-      _threshold_min = clamp(_threshold_min + 2.0, -120.0, 0.0);
-      return true;
-    }
-
-    case 'J': {
-      _threshold_min = clamp(_threshold_min - 2.0, -120.0, 0.0);
-      if (_threshold_min > _threshold_max) {_threshold_max = _threshold_min;}
-      return true;
-    }
-
-    case 'k': {
-      _threshold_max = clamp(_threshold_max - 2.0, -120.0, 0.0);
-      if (_threshold_max < _threshold_min) {_threshold_min = _threshold_max;}
-      return true;
-    }
-
-    case 'K': {
-      _threshold_max = clamp(_threshold_max + 2.0, -120.0, 0.0);
-      return true;
-    }
-
-    case '?': {
-      auto const recording = _rec.recording();
-      if (recording) {
-        _rec.stop();
-      }
-      _timer.cancel();
-      screen_deinit();
-
-      std::system(("$(which less) -Ri '+/Key Bindings' <<'EOF'\n" + _pg.help() + "EOF").c_str());
-
-      screen_init();
-      on_winch();
-      _tick_timer.clear();
-      _tick_begin = Clock::now();
-      await_tick();
-      if (recording) {
-        _rec.start();
-      }
-
+    case 'M': {
+      _cl_swap = ! _cl_swap;
       return true;
     }
   }
 
   return false;
+}
+
+void App::swap_colors() {
+  std::swap(_cfg.style.freq, _cfg.style.freq2);
+  std::swap(_cfg.style.freq3, _cfg.style.freq4);
+}
+
+void App::shift_colors(double const dt) {
+  if (_color && _cl_shift > 0.0) {
+    _cl_delta += dt * 1000.0;
+    while (_cl_delta >= _cl_shift) {
+      _cl_delta -= _cl_shift;
+      _cfg.style.freq.h(clampc(static_cast<int>(_cfg.style.freq.h()) - 1, 0, 359));
+      _cfg.style.freq2.h(clampc(static_cast<int>(_cfg.style.freq2.h()) - 1, 0, 359));
+      _cfg.style.freq3.h(clampc(static_cast<int>(_cfg.style.freq3.h()) - 1, 0, 359));
+      _cfg.style.freq4.h(clampc(static_cast<int>(_cfg.style.freq4.h()) - 1, 0, 359));
+    }
+  }
 }
 
 std::size_t App::bar_calc_height(double const val, std::size_t height) const {
@@ -718,568 +944,6 @@ std::size_t App::bar_calc_height(double const val, std::size_t height) const {
     res = nheight;
   }
   return res;
-}
-
-void App::draw_bars_vertical(std::size_t const x_begin, std::size_t const y_begin, std::size_t const width, std::size_t const height, Bars& bars, bool const draw_reverse) {
-  for (std::size_t x = 0; x < bars.size; ++x) {
-    auto const index = _block_reverse ? bars.size - 1 - x : x;
-    auto c = bars.freq[index];
-    auto p = bars.peak[index];
-
-    int x_pos {0};
-    std::size_t bar_width {0};
-    if (draw_reverse) {
-      x_pos = width - bars.bar_width - bars.margin_lhs - ((x * bars.bar_width) + (x * bars.padding));
-      bar_width = x_pos + bars.bar_width > width ? width - x_pos : bars.bar_width;
-      if (x_pos < 0) {
-        bar_width += x_pos;
-        x_pos = 0;
-      }
-    }
-    else {
-      x_pos = bars.margin_lhs + (x * bars.bar_width) + (x * bars.padding);
-      bar_width = x_pos + bars.bar_width > width ? width - x_pos : bars.bar_width;
-    }
-
-    double const ci_peak {(_hue_factor / 2.0) / (height * 8.0)};
-    double const ci_freq {(_hue_factor / 2.0) / (height * 8.0)};
-    OB::Prism::HSLA cl_peak {_cl_peak};
-    OB::Prism::HSLA cl_freq {_cl_freq};
-
-    if (_color) {
-      // gradient along the x-axis
-      cl_peak.h(clampc(static_cast<int>(_cl_peak.h() + (x * (_hue_factor / bars.size))), 0, 359));
-      cl_freq.h(clampc(static_cast<int>(_cl_freq.h() + (x * (_hue_factor / bars.size))), 0, 359));
-    }
-
-    // draw frequency bars
-    if (bar_width && (_draw_freq && _draw_freq_always || _draw_freq && c > _threshold_min)) {
-      auto color = cl_freq;
-      auto const vheight = bar_calc_height(c, height);
-      auto const bar_height = vheight / 8;
-      std::size_t const tip_index = (_block_flip ? 7 - (vheight % 8 ? vheight % 8 : 1) : vheight % 8);
-      std::size_t yb {0};
-
-      for (std::size_t y = 0; y < bar_height; ++y) {
-        std::size_t const y_pos {_block_flip ? ((height - 1) - y) : y};
-
-        if (_color) {
-          // gradient along the y-axis
-          color.h(clampc(static_cast<int>(color.h() - (ci_freq * 8)), 0, 359));
-
-          if (_alpha) {
-            color.a(clamp(std::trunc(3.0 * 255.0 * (static_cast<double>(y + 1) / static_cast<double>(height))), 1.0, 255.0));
-          }
-        }
-
-        if (_block_height_full) {
-          if (_color) {
-            for (std::size_t i = 0; i < bar_width; ++i) {
-              _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, Style{Style::Bit_24, 0, color, _cfg.bg}, _bar_vertical[7]});
-            }
-          }
-          else {
-            for (std::size_t i = 0; i < bar_width; ++i) {
-              _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, _style_default, _bar_vertical[7]});
-            }
-          }
-        }
-        else if (bar_height <= bars.bar_height || y >= bar_height - bars.bar_height) {
-          if (!yb) {
-            yb = 1;
-
-            if (y == 0 && bars.bar_height > bar_height) {
-              if (_color) {
-                for (std::size_t i = 0; i < bar_width; ++i) {
-                  _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, Style{Style::Bit_24, 0, color, _cfg.bg}, _bar_vertical[7]});
-                }
-              }
-              else {
-                for (std::size_t i = 0; i < bar_width; ++i) {
-                  _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, _style_default, _bar_vertical[7]});
-                }
-              }
-            }
-            else {
-              if (_color) {
-                OB::Prism::RGBA fg;
-                OB::Prism::RGBA bg;
-
-                if (_block_flip) {
-                  fg = color;
-                  bg = _cfg.bg;
-                }
-                else {
-                  fg = _cfg.bg;
-                  bg = color;
-                }
-
-                for (std::size_t i = 0; i < bar_width; ++i) {
-                  _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, Style{Style::Bit_24, 0, fg, bg}, _bar_vertical[tip_index]});
-                }
-              }
-              else {
-                auto const style_attr = _block_flip ? Style::Null : Style::Reverse;
-                auto style = _style_default;
-                style.attr = style_attr;
-
-                for (std::size_t i = 0; i < bar_width; ++i) {
-                  _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, style, _bar_vertical[tip_index]});
-                }
-              }
-            }
-          }
-          else {
-            if (_color) {
-              for (std::size_t i = 0; i < bar_width; ++i) {
-                _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, Style{Style::Bit_24, 0, color, _cfg.bg}, _bar_vertical[7]});
-              }
-            }
-            else {
-              for (std::size_t i = 0; i < bar_width; ++i) {
-                _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, _style_default, _bar_vertical[7]});
-              }
-            }
-          }
-        }
-      }
-
-      if (_color) {
-        // gradient along the y-axis
-        color.h(clampc(static_cast<int>(color.h() - (ci_freq * (vheight % 8))), 0, 359));
-
-        if (_alpha) {
-          color.a(clamp(std::trunc(3.0 * 255.0 * (static_cast<double>(vheight + 1) / static_cast<double>(height * 8))), 1.0, 255.0));
-        }
-      }
-
-      std::size_t const y_pos {_block_flip ? (height - 1) - bar_height : bar_height};
-
-      if (_color) {
-        OB::Prism::RGBA fg;
-        OB::Prism::RGBA bg;
-
-        if (_block_flip) {
-          fg = _cfg.bg;
-          bg = color;
-        }
-        else {
-          fg = color;
-          bg = _cfg.bg;
-        }
-
-        for (std::size_t i = 0; i < bar_width; ++i) {
-          _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, Style{Style::Bit_24, 0, fg, bg}, _bar_vertical[tip_index]});
-        }
-      }
-      else {
-        auto const style_attr = _block_flip ? Style::Reverse : Style::Null;
-        auto style = _style_default;
-        style.attr = style_attr;
-
-        for (std::size_t i = 0; i < bar_width; ++i) {
-          _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, style, _bar_vertical[tip_index]});
-        }
-      }
-    }
-
-    // draw frequency peaks
-    if (bar_width && (_draw_peak && _draw_peak_always || _draw_peak && p > _threshold_min)) {
-      if (p >= c) {
-        auto vheight = bar_calc_height(p, height);
-        auto bar_height = vheight / 8;
-        std::size_t const tip_index = (_block_flip ? 6 : 0);
-        std::size_t const y_pos {_block_flip ? (height - 1) - bar_height : bar_height};
-        if (y_begin + y_pos >= _win.buf.size().y) {continue;}
-        auto const& cell = _win.buf.col(Pos{x_begin + x_pos, y_begin + y_pos});
-
-        if (cell.text.empty() || cell.text == " ") {
-          if (_color) {
-            auto color = cl_peak;
-
-            // gradient along the y-axis
-            color.h(clampc(static_cast<int>(color.h() - (ci_peak * 8 * bar_height)), 0, 359));
-            color.s(100);
-            color.l(50);
-
-            if (_alpha) {
-              color.a(clamp(std::trunc(3.0 * 255.0 * (static_cast<double>(bar_height + 1) / static_cast<double>(height))), 1.0, 255.0));
-            }
-
-            OB::Prism::RGBA fg;
-            OB::Prism::RGBA bg;
-
-            if (_block_flip) {
-              fg = _cfg.bg;
-              bg = color;
-            }
-            else {
-              fg = color;
-              bg = _cfg.bg;
-            }
-
-            for (std::size_t i = 0; i < bar_width; ++i) {
-              _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, Style{Style::Bit_24, 0, fg, bg}, _bar_vertical[tip_index]});
-            }
-          }
-          else {
-            auto const style_attr = _block_flip ? Style::Reverse : Style::Null;
-            auto style = _style_default;
-            style.attr = style_attr;
-
-            for (std::size_t i = 0; i < bar_width; ++i) {
-              _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, style, _bar_vertical[tip_index]});
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-void App::draw_bars_horizontal(std::size_t const x_begin, std::size_t const y_begin, std::size_t const width, std::size_t const height, Bars& bars, bool const draw_reverse) {
-  for (std::size_t y = 0; y < bars.size; ++y) {
-    auto const index = _block_reverse ? bars.size - 1 - y : y;
-    auto c = bars.freq[index];
-    auto p = bars.peak[index];
-
-    int y_pos {0};
-    std::size_t bar_width {0};
-    if (draw_reverse) {
-      y_pos = height - bars.bar_width - bars.margin_lhs - ((y * bars.bar_width) + (y * bars.padding));
-      bar_width = y_pos + bars.bar_width > height ? height - y_pos : bars.bar_width;
-      if (y_pos < 0) {
-        bar_width += y_pos;
-        y_pos = 0;
-      }
-    }
-    else {
-      y_pos = bars.margin_lhs + (y * bars.bar_width) + (y * bars.padding);
-      bar_width = y_pos + bars.bar_width > height ? height - y_pos : bars.bar_width;
-    }
-
-    double const ci_peak {(_hue_factor / 2.0) / (height * 8.0)};
-    double const ci_freq {(_hue_factor / 2.0) / (height * 8.0)};
-    OB::Prism::HSLA cl_peak {_cl_peak};
-    OB::Prism::HSLA cl_freq {_cl_freq};
-    if (_color) {
-      cl_peak.h(clampc(static_cast<int>(_cl_peak.h() + (y * (_hue_factor / bars.size))), 0, 359));
-      cl_freq.h(clampc(static_cast<int>(_cl_freq.h() + (y * (_hue_factor / bars.size))), 0, 359));
-    }
-
-    // draw frequency bars
-    if (bar_width && (_draw_freq && _draw_freq_always || _draw_freq && c > _threshold_min)) {
-      auto color = cl_freq;
-      auto const vheight = bar_calc_height(c, width);
-      auto const bar_height = vheight / 8;
-      std::size_t const tip_index = (_block_flip ? 7 - (vheight % 8 ? vheight % 8 : 1) : vheight % 8);
-      auto const fill = _bar_horizontal[7];
-      std::size_t xb {0};
-
-      for (std::size_t x = 0; x < bar_height; ++x) {
-        std::size_t const x_pos {_block_flip ? ((width - 1) - x) : x};
-
-        if (x % 2 == 0 && _color) {
-          color.h(clampc(static_cast<int>(color.h() - (ci_freq * 8)), 0, 359));
-
-          if (_alpha) {
-            color.a(clamp(std::trunc(3.0 * 255.0 * (static_cast<double>(x + 1) / static_cast<double>(width))), 1.0, 255.0));
-          }
-        }
-
-        if (_block_height_full) {
-          if (_color) {
-            for (std::size_t i = 0; i < bar_width; ++i) {
-              _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, Style{Style::Bit_24, 0, color, _cfg.bg}, fill});
-            }
-          }
-          else {
-            for (std::size_t i = 0; i < bar_width; ++i) {
-              _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, _style_default, fill});
-            }
-          }
-        }
-        else if (bar_height <= bars.bar_height || x >= bar_height - bars.bar_height) {
-          if (!xb) {
-            xb = 1;
-
-            if (x == 0 && bars.bar_height > bar_height) {
-              if (_color) {
-                for (std::size_t i = 0; i < bar_width; ++i) {
-                  _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, Style{Style::Bit_24, 0, color, _cfg.bg}, fill});
-                }
-              }
-              else {
-                for (std::size_t i = 0; i < bar_width; ++i) {
-                  _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, _style_default, fill});
-                }
-              }
-            }
-            else {
-              if (_color) {
-                OB::Prism::RGBA fg;
-                OB::Prism::RGBA bg;
-
-                if (_block_flip) {
-                  fg = color;
-                  bg = _cfg.bg;
-                }
-                else {
-                  fg = _cfg.bg;
-                  bg = color;
-                }
-
-                for (std::size_t i = 0; i < bar_width; ++i) {
-                  _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, Style{Style::Bit_24, 0, fg, bg}, _bar_horizontal[tip_index]});
-                }
-              }
-              else {
-                auto const style_attr = _block_flip ? Style::Null : Style::Reverse;
-                auto style = _style_default;
-                style.attr = style_attr;
-
-                for (std::size_t i = 0; i < bar_width; ++i) {
-                  _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, style, _bar_horizontal[tip_index]});
-                }
-              }
-            }
-          }
-          else {
-            if (_color) {
-              for (std::size_t i = 0; i < bar_width; ++i) {
-                _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, Style{Style::Bit_24, 0, color, _cfg.bg}, fill});
-              }
-            }
-            else {
-              for (std::size_t i = 0; i < bar_width; ++i) {
-                _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, _style_default, fill});
-              }
-            }
-          }
-        }
-      }
-
-      if (_color) {
-        color.h(clampc(static_cast<int>(color.h() - (ci_freq * (vheight % 8))), 0, 359));
-
-        if (_alpha) {
-          color.a(clamp(std::trunc(3.0 * 255.0 * (static_cast<double>(vheight + 1) / static_cast<double>(width * 8))), 1.0, 255.0));
-        }
-      }
-
-      std::size_t const x_pos {_block_flip ? (width - 1) - bar_height : bar_height};
-
-      if (_color) {
-        OB::Prism::RGBA fg;
-        OB::Prism::RGBA bg;
-
-        if (_block_flip) {
-          fg = _cfg.bg;
-          bg = color;
-        }
-        else {
-          fg = color;
-          bg = _cfg.bg;
-        }
-
-        for (std::size_t i = 0; i < bar_width; ++i) {
-          _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, Style{Style::Bit_24, 0, fg, bg}, _bar_horizontal[tip_index]});
-        }
-      }
-      else {
-        auto const style_attr = _block_flip ? Style::Reverse : Style::Null;
-        auto style = _style_default;
-        style.attr = style_attr;
-
-        for (std::size_t i = 0; i < bar_width; ++i) {
-          _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, style, _bar_horizontal[tip_index]});
-        }
-      }
-    }
-
-    // draw frequency peaks
-    if (bar_width && (_draw_peak && _draw_peak_always || _draw_peak && p > _threshold_min)) {
-      if (p >= c) {
-        auto vheight = bar_calc_height(p, width);
-        auto bar_height = vheight / 8;
-        auto const tip_index = (_block_flip ? 6 : 0);
-        std::size_t const x_pos {_block_flip ? (width - 1) - bar_height : bar_height};
-        if (y_begin + y_pos >= _win.buf.size().y) {continue;}
-        auto const& cell = _win.buf.col(Pos{x_begin + x_pos, y_begin + y_pos});
-
-        if (cell.text.empty() || cell.text == " ") {
-          if (_color) {
-            auto color = cl_peak;
-
-            color.h(clampc(static_cast<int>(color.h() - (ci_peak * 8 * bar_height)), 0, 359));
-            color.s(100);
-            color.l(50);
-
-            if (_alpha) {
-              color.a(clamp(std::trunc(3.0 * 255.0 * (static_cast<double>(bar_height + 1) / static_cast<double>(width))), 1.0, 255.0));
-            }
-
-            OB::Prism::RGBA fg;
-            OB::Prism::RGBA bg;
-
-            if (_block_flip) {
-              fg = _cfg.bg;
-              bg = color;
-            }
-            else {
-              fg = color;
-              bg = _cfg.bg;
-            }
-
-            for (std::size_t i = 0; i < bar_width; ++i) {
-              _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, Style{Style::Bit_24, 0, fg, bg}, _bar_horizontal[tip_index]});
-            }
-          }
-          else {
-            auto const style_attr = _block_flip ? Style::Reverse : Style::Null;
-            auto style = _style_default;
-            style.attr = style_attr;
-
-            for (std::size_t i = 0; i < bar_width; ++i) {
-              _win.buf(Pos{x_begin + x_pos, y_begin + y_pos + i}, Cell{1, style, _bar_horizontal[tip_index]});
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-void App::draw_lines_vertical(std::size_t const x_begin, std::size_t const y_begin, std::size_t const width, std::size_t const height, Bars& bars, bool const draw_reverse) {
-  std::size_t prev_height {0};
-  for (std::size_t x = 0; x < bars.size; ++x) {
-    auto const index = _block_reverse ? bars.size - 1 - x : x;
-    auto p = bars.freq[index];
-
-    int x_pos {0};
-    std::size_t bar_width {0};
-    if (draw_reverse) {
-      x_pos = width - bars.bar_width - bars.margin_lhs - ((x * bars.bar_width) + (x * bars.padding));
-      bar_width = x_pos + bars.bar_width > width ? width - x_pos : bars.bar_width;
-      if (x_pos < 0) {
-        bar_width += x_pos;
-        x_pos = 0;
-      }
-    }
-    else {
-      x_pos = bars.margin_lhs + (x * bars.bar_width) + (x * bars.padding);
-      bar_width = x_pos + bars.bar_width > width ? width - x_pos : bars.bar_width;
-    }
-
-    double const ci_freq {(_hue_factor / 2.0) / (height * 8.0)};
-    OB::Prism::HSLA cl_freq {_cl_freq};
-
-    if (bar_width && (_draw_freq && _draw_freq_always || _draw_freq)) {
-      auto vheight = bar_calc_height(p, height);
-      auto bar_height = vheight / 8;
-
-      auto const get_style = [&](auto const x, auto y) {
-        if (_color) {
-          std::size_t const y_pos {_block_flip ? (height - 1) - bar_height : bar_height};
-          if (_block_flip) {y = (height - 1) - y;}
-          auto color = cl_freq;
-          color.h(clampc(static_cast<int>(_cl_freq.h() + ((x / (bar_width + bars.padding)) * (_hue_factor / bars.size))), 0, 359));
-          color.h(clampc(static_cast<int>(color.h() - (ci_freq * 8 * y)), 0, 359));
-          color.s(100);
-          color.l(50);
-
-          if (_alpha) {
-            color.a(clamp(std::trunc(3.0 * 255.0 * (static_cast<double>(y + 1) / static_cast<double>(height))), 1.0, 255.0));
-          }
-
-          return Style{Style::Bit_24, 0, color, _cfg.bg};
-        }
-
-        return _style_default;
-      };
-
-      std::size_t const y_pos {_block_flip ? (height - 1) - bar_height : bar_height};
-      std::size_t y_prev {_block_flip ? (height - 1) - prev_height : prev_height};
-
-      if (x == 0) {
-        if (_block_flip) {
-          for (std::size_t i = y_prev; i > y_pos; --i) {
-            _win.buf(Pos{x_begin + x_pos, y_begin + i}, Cell{1, get_style(x_pos, i), _line_vertical[1]});
-          }
-          _win.buf(Pos{x_begin + x_pos, y_begin + y_pos}, Cell{1, get_style(x_pos, y_pos), _line_vertical[4]});
-          for (std::size_t i = 1; i < bar_width + bars.padding; ++i) {
-            _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, get_style(x_pos + i, y_pos), _line_vertical[0]});
-          }
-        }
-        else {
-          for (std::size_t i = y_prev; i < y_pos; ++i) {
-            _win.buf(Pos{x_begin + x_pos, y_begin + i}, Cell{1, get_style(x_pos, i), _line_vertical[1]});
-          }
-          _win.buf(Pos{x_begin + x_pos, y_begin + y_pos}, Cell{1, get_style(x_pos, y_pos), _line_vertical[2]});
-          for (std::size_t i = 1; i < bar_width + bars.padding; ++i) {
-            _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, get_style(x_pos + i, y_pos), _line_vertical[0]});
-          }
-        }
-      }
-      else if (x == bars.size - 1) {
-        // TODO handle when bar width + bar padding is > width
-        if (_block_flip) {
-          for (std::size_t i = height - 1; i > y_prev; --i) {
-            _win.buf(Pos{x_begin + x_pos + bar_width + bars.padding - 1, y_begin + i}, Cell{1, get_style(x_pos + bar_width + bars.padding - 1, i), _line_vertical[1]});
-          }
-          for (std::size_t i = 0; i < bar_width + bars.padding - 1; ++i) {
-            _win.buf(Pos{x_begin + x_pos + i, y_begin + y_prev}, Cell{1, get_style(x_pos + i, y_prev), _line_vertical[0]});
-          }
-          _win.buf(Pos{x_begin + x_pos + bar_width + bars.padding - 1, y_begin + y_prev}, Cell{1, get_style(x_pos + bar_width + bars.padding - 1, y_prev), _line_vertical[5]});
-        }
-        else {
-          for (std::size_t i = 0; i < y_prev; ++i) {
-            _win.buf(Pos{x_begin + x_pos + bar_width + bars.padding - 1, y_begin + i}, Cell{1, get_style(x_pos + bar_width + bars.padding - 1, i), _line_vertical[1]});
-          }
-          for (std::size_t i = 0; i < bar_width + bars.padding - 1; ++i) {
-            _win.buf(Pos{x_begin + x_pos + i, y_begin + y_prev}, Cell{1, get_style(x_pos + i, y_prev), _line_vertical[0]});
-          }
-          _win.buf(Pos{x_begin + x_pos + bar_width + bars.padding - 1, y_begin + y_prev}, Cell{1, get_style(x_pos + bar_width + bars.padding - 1, y_prev), _line_vertical[3]});
-        }
-      }
-      else if (y_pos == y_prev) {
-        for (std::size_t i = 0; i < bar_width + bars.padding; ++i) {
-          _win.buf(Pos{x_begin + x_pos + i, y_begin + y_pos}, Cell{1, get_style(x_pos + i, y_pos), _line_vertical[0]});
-        }
-      }
-      else if (y_pos > y_prev) {
-        _win.buf(Pos{x_begin + x_pos, y_begin + y_prev}, Cell{1, get_style(x_pos, y_prev), _line_vertical[5]});
-        for (std::size_t i = y_prev + 1; i < y_pos; ++i) {
-          _win.buf(Pos{x_begin + x_pos, y_begin + i}, Cell{1, get_style(x_pos, i), _line_vertical[1]});
-        }
-        _win.buf(Pos{x_begin + x_pos, y_begin + y_pos}, Cell{1, get_style(x_pos, y_pos), _line_vertical[2]});
-        if (x_begin + x_pos + 1 < bars.width) {
-          for (std::size_t i = 0; i < bar_width + bars.padding - 1; ++i) {
-            _win.buf(Pos{x_begin + x_pos + 1 + i, y_begin + y_pos}, Cell{1, get_style(x_pos + 1 + i, y_pos), _line_vertical[0]});
-          }
-        }
-      }
-      else if (y_pos < y_prev) {
-        _win.buf(Pos{x_begin + x_pos, y_begin + y_pos}, Cell{1, get_style(x_pos, y_pos), _line_vertical[4]});
-        for (std::size_t i = y_pos + 1; i < y_prev; ++i) {
-          _win.buf(Pos{x_begin + x_pos, y_begin + i}, Cell{1, get_style(x_pos, i), _line_vertical[1]});
-        }
-        _win.buf(Pos{x_begin + x_pos, y_begin + y_prev}, Cell{1, get_style(x_pos, y_prev), _line_vertical[3]});
-        if (x_begin + x_pos + 1 < bars.width) {
-          for (std::size_t i = 0; i < bar_width + bars.padding - 1; ++i) {
-            _win.buf(Pos{x_begin + x_pos + 1 + i, y_begin + y_pos}, Cell{1, get_style(x_pos + 1 + i, y_pos), _line_vertical[0]});
-          }
-        }
-      }
-
-      prev_height = bar_height;
-      continue;
-    }
-    prev_height = 0;
-  }
-}
-
-void App::draw_lines_horizontal(std::size_t const x_begin, std::size_t const y_begin, std::size_t const width, std::size_t const height, Bars& bars, bool const draw_reverse) {
 }
 
 void App::bar_calc_dimensions(Bars& bars) {
@@ -1321,69 +985,76 @@ void App::bar_calc_dimensions(Bars& bars) {
 void App::bar_process(std::vector<double> const& bins, Bars& bars) {
   auto const bin_freq_res = _rec.sample_rate() / static_cast<double>(_size);
   auto const low = _rec.high_pass() + std::fmod(_rec.high_pass(), bin_freq_res);
-  _ranges.resize(bars.size);
+  _info.resize(bars.size);
 
   if (bins.size()) {
-    std::size_t T {0};
-    // only for note grouped mode
-    // std::vector<double> raw;
-    // for (std::size_t x = 0, p = 0, i = 0; p + 1 < bins.size(); ++x) {
-    for (std::size_t x = 0, p = 0, i = 0; x < bars.size; ++x) {
-      // log grouped mode
-      i = static_cast<std::size_t>(std::trunc(scale_log(static_cast<double>(x + 1), 1.0, static_cast<double>(bars.size), 1.0, static_cast<double>(bins.size())) + 0.001));
-      if (p >= i) {i = p + 1;}
-      if (i >= bins.size()) {i = bins.size() - 1;}
-      auto const begin = bins.begin() + p;
-      auto const end = bins.begin() + i;
+    if (_sort_log) {
+      std::size_t T {0};
+      for (std::size_t x = 0, p = 0, i = 0; x < bars.size; ++x) {
+        i = static_cast<std::size_t>(std::trunc(scale_log(static_cast<double>(x + 1), 1.0, static_cast<double>(bars.size), 1.0, static_cast<double>(bins.size())) + 0.001));
+        if (p >= i) {i = p + 1;}
+        if (i >= bins.size()) {i = bins.size() - 1;}
+        auto const begin = bins.begin() + p;
+        auto const end = bins.begin() + i;
 
-      // note grouped mode
-      // if (p + 1 == bins.size()) {
-      //   break;
-      //   // raw.emplace_back(-std::numeric_limits<double>::infinity());
-      //   // // _ranges[x] = Range{0, 0, 0};
-      //   // T += i - p;
-      //   // p = i;
-      //   // continue;
-      // }
-      // auto const note = freq_to_note(bin_freq_res * p + low);
-      // for (++i; i < bins.size(); ++i) {
-      //   if (note != freq_to_note(bin_freq_res * i + low)) {
-      //     break;
-      //   }
-      // }
-      // if (p >= i) {i = p + 1;}
-      // if (i >= bins.size()) {i = bins.size() - 1;}
-      // auto const begin = bins.begin() + p;
-      // auto const end = bins.begin() + i;
+        // value is based on average of elements in the range
+        // double v = std::accumulate(begin, end, 0.0) / (i - p);
+        // bars.raw[x] = v;
 
-      // value is based on average of elements in the range
-      // double v = std::accumulate(begin, end, 0.0) / (i - p);
-      // bars.raw[x] = v;
+        // value is based on max element in the range
+        auto const ptr = std::max_element(begin, end);
 
-      // value is based on max element in the range
-      auto const ptr = std::max_element(begin, end);
+        bars.raw[x] = *ptr;
 
-      // only for note grouped mode
-      // raw.emplace_back(*ptr);
+        _info[x] = Info{bin_freq_res * static_cast<double>(std::distance(bins.begin(), ptr)) + static_cast<std::size_t>(std::trunc(low))};
+        T += i - p;
+        p = i;
+      }
+    }
+    else {
+      std::size_t T {0};
+      std::vector<std::pair<double, double>> raw;
+      for (std::size_t x = 0, p = 0, i = 0; p + 1 < bins.size(); ++x) {
+        Note const note {bin_freq_res * p + low, _octave_scale};
+        for (++i; i < bins.size(); ++i) {
+          if (note != Note(bin_freq_res * i + low, _octave_scale)) {
+            break;
+          }
+        }
+        if (p >= i) {i = p + 1;}
+        if (i >= bins.size()) {i = bins.size() - 1;}
+        auto const begin = bins.begin() + p;
+        auto const end = bins.begin() + i;
 
-      bars.raw[x] = *ptr;
+        // value is based on average of elements in the range
+        // double v = std::accumulate(begin, end, 0.0) / (i - p);
+        // value is based on max element in the range
+        auto const ptr = std::max_element(begin, end);
 
-      _ranges[x] = Range{bin_freq_res * static_cast<double>(std::distance(bins.begin(), ptr)) + static_cast<std::size_t>(std::trunc(low)), static_cast<std::size_t>(std::trunc(bin_freq_res * p + low)), static_cast<std::size_t>(std::trunc(bin_freq_res * i + low))};
-      T += i - p;
-      p = i;
+        raw.emplace_back(*ptr, bin_freq_res * static_cast<double>(std::distance(bins.begin(), ptr)) + static_cast<std::size_t>(std::trunc(low)));
+
+        T += i - p;
+        p = i;
+      }
+
+      // TODO make each octave as equally represented as possible
+      // depending on frequency resolution, low octaves may have considerably less notes than the higher octaves
+      // split bars by octave
+      // resample each octave to either 12 or 24 notes
+      // resample all bars to final size
+      auto const db_hz = Filter::resample(raw, bars.size, raw.size());
+      for (std::size_t i = 0; i < bars.size; ++i) {
+        auto const& e = db_hz[i];
+        bars.raw[i] = e.first;
+        _info[i] = Info{e.second};
+      }
     }
 
-    // bars.raw = std::move(raw);
-
-    // only for note grouped mode
-    // bars.raw = Filter::resample(raw, bars.size, raw.size());
-    // std::cerr << "DBG> " << raw.size() << ":" << bars.raw.size() << ":" << bars.size << "\n";
-
     for (auto& v : bars.raw) {
-      if (!std::isfinite(v) && std::signbit(v) || v < _threshold_min) {
+      if ((!std::isfinite(v) && std::signbit(v)) || v < _threshold_min) {
         v = _threshold_min;
       }
-      else if (!std::isfinite(v) && !std::signbit(v) || v > _threshold_max) {
+      else if ((!std::isfinite(v) && !std::signbit(v)) || v > _threshold_max) {
         v = _threshold_max;
       }
     }
@@ -1408,8 +1079,6 @@ void App::bar_process(std::vector<double> const& bins, Bars& bars) {
 }
 
 void App::bar_movement(double const dt, Bars& bars) {
-  // if (!_rec.recording()) {return;}
-
   for (std::size_t i = 0; i < bars.size; ++i) {
     if (bars.freq[i] < bars.raw[i]) {
       if (_speed_freq_unique) {
@@ -1473,6 +1142,10 @@ void App::bar_movement(double const dt, Bars& bars) {
 }
 
 void App::update(double const dt) {
+  update_visualizer(dt);
+}
+
+void App::update_visualizer(double const dt) {
   _rec.process();
 
   _bars_left.margin_lhs = 0;
@@ -1511,14 +1184,14 @@ void App::update(double const dt) {
       auto const height_rem = height % 2;
 
       _bars_left.width = width;
-      _bars_left.height = height_half;
+      _bars_left.height = height_half + height_rem;
 
       _bars_right.width = width;
-      _bars_right.height = height_half + height_rem;
+      _bars_right.height = height_half;
 
       if (_block_vertical) {
         _bars_left.x = 0;
-        _bars_left.y = height_half + height_rem;
+        _bars_left.y = height_half;
 
         _bars_right.x = 0;
         _bars_right.y = 0;
@@ -1527,37 +1200,38 @@ void App::update(double const dt) {
         _bars_left.x = 0;
         _bars_left.y = 0;
 
-        _bars_right.x = height_half;
-        _bars_right.y = 0;
+        _bars_right.x = 0;
+        _bars_right.y = height_half + height_rem;
       }
 
       bar_calc_dimensions(_bars_left);
       bar_calc_dimensions(_bars_right);
     }
     else {
+      // stereo shared
       auto const width_half = width / 2;
       auto const width_rem = width % 2;
       auto const padding_half = _bars_left.padding / 2;
       auto const padding_rem = _bars_left.padding % 2;
 
-      _bars_left.width = width_half;
+      _bars_left.width = width_half + width_rem;
       _bars_left.height = height;
-      _bars_left.margin_lhs = padding_half;
+      _bars_left.margin_lhs = padding_half + padding_rem;
 
-      _bars_right.width = width_half + width_rem;
+      _bars_right.width = width_half;
       _bars_right.height = height;
-      _bars_right.margin_lhs = padding_half + padding_rem;
+      _bars_right.margin_lhs = padding_half;
 
       if (_block_vertical) {
         _bars_left.x = 0;
         _bars_left.y = 0;
 
-        _bars_right.x = width_half;
+        _bars_right.x = width_half + width_rem;
         _bars_right.y = 0;
       }
       else {
-        _bars_left.x = 0;
-        _bars_left.y = width_half;
+        _bars_left.x = width_half + width_rem;
+        _bars_left.y = 0;
 
         _bars_right.x = 0;
         _bars_right.y = 0;
@@ -1577,56 +1251,12 @@ void App::update(double const dt) {
     bar_movement(dt, _bars_right);
   }
 
-  if (_color && _cl_shift > 0.0) {
-    _cl_delta += dt * 1000.0;
-    while (_cl_delta >= _cl_shift) {
-      _cl_delta -= _cl_shift;
-      _cl_freq.h(clampc(static_cast<int>(_cl_freq.h()) - 1, 0, 359));
-      _cl_peak.h(clampc(static_cast<int>(_cl_peak.h()) - 1, 0, 359));
-    }
-  }
+  shift_colors(dt);
 }
 
 void App::draw() {
-  draw_bars();
+  draw_visualizer();
   draw_overlay();
-}
-
-void App::draw_bars() {
-  if (_mono) {
-    if (_block_vertical) {
-      draw_bars_vertical(_bars_left.x, _bars_left.y, _bars_left.width, _bars_left.height, _bars_left);
-    }
-    else {
-      draw_bars_horizontal(_bars_left.x, _bars_left.y, _bars_left.height, _bars_left.width, _bars_left);
-    }
-  }
-  else {
-    if (_block_vertical) {
-      if (_block_stack) {
-        draw_bars_vertical(_bars_left.x, _bars_left.y, _bars_left.width, _bars_left.height, _bars_left);
-        _block_flip = !_block_flip;
-        draw_bars_vertical(_bars_right.x, _bars_right.y, _bars_right.width, _bars_right.height, _bars_right);
-        _block_flip = !_block_flip;
-      }
-      else {
-        draw_bars_vertical(_bars_left.x, _bars_left.y, _bars_left.width, _bars_left.height, _bars_left, true);
-        draw_bars_vertical(_bars_right.x, _bars_right.y, _bars_right.width, _bars_right.height, _bars_right);
-      }
-    }
-    else {
-      if (_block_stack) {
-          _block_flip = !_block_flip;
-          draw_bars_horizontal(_bars_left.x, _bars_left.y, _bars_left.height, _bars_left.width, _bars_left);
-          _block_flip = !_block_flip;
-          draw_bars_horizontal(_bars_right.x, _bars_right.y, _bars_right.height, _bars_right.width, _bars_right);
-      }
-      else {
-          draw_bars_horizontal(_bars_left.x, _bars_left.y, _bars_left.height, _bars_left.width, _bars_left);
-          draw_bars_horizontal(_bars_right.x, _bars_right.y, _bars_right.height, _bars_right.width, _bars_right, true);
-      }
-    }
-  }
 }
 
 void App::draw_overlay() {
@@ -1634,12 +1264,11 @@ void App::draw_overlay() {
     if ((_mono || _block_stack) && _block_vertical && !_block_reverse) {
       std::size_t index {0};
       Pos pos {0, _height - 1};
-      for (auto const& range : _ranges) {
-        // std::string const range_str {std::to_string(range.begin) + "-" + std::to_string(range.end) + " " + std::to_string(static_cast<std::size_t>(std::trunc(range.freq))) + " " + freq_to_note(range.freq)};
-        std::string const range_str {std::to_string(static_cast<std::size_t>(std::trunc(range.freq))) + " " + freq_to_note(range.freq).str()};
-        for (auto const& e : range_str) {
+      for (auto const& info : _info) {
+        std::string const info_str {std::to_string(static_cast<std::size_t>(std::trunc(info.freq))) + " " + Note{info.freq, _octave_scale}.str()};
+        for (auto const& e : info_str) {
           if (_color) {
-            _win.buf(pos, Cell{1, Style{Style::Bit_24, 0, index % 2 ? OB::Prism::Hex("c0c0c0") : OB::Prism::Hex("f0f0f0"), _cfg.bg}, std::string(1, e)});
+            _win.buf(pos, Cell{1, Style{Style::Bit_24, 0, index % 2 ? OB::Prism::Hex("c0c0c0") : OB::Prism::Hex("f0f0f0"), _cfg.style.bg}, std::string(1, e)});
           }
           else {
             _win.buf(pos, Cell{1, _style_default, std::string(1, e)});
@@ -1658,21 +1287,362 @@ void App::draw_overlay() {
         "frequency "s + std::to_string(_high_pass) + ":"s + std::to_string(_low_pass)
         + " | decibels "s + std::to_string(static_cast<int>(_threshold_min)) + ":"s + std::to_string(static_cast<int>(_threshold_max))
         + " | filter "s + std::to_string(_filter)
+        + " | sort "s + (_sort_log ? "log"s : "note"s)
         + " | fps "s + std::to_string(_fps)
       };
-      if (title.size() > _width) {title = title.substr(0, _width);}
-      auto style = _color ? Style{Style::Bit_24, 0, OB::Prism::Hex("f0f0f0"), _cfg.bg} : Style{Style::Default, 0, {}, {}};
+      if (title.size() > _width) {
+        title = title.substr(0, _width - 1);
+        title += ">";
+      }
+      auto style = _color ? Style{Style::Bit_24, 0, OB::Prism::Hex("f0f0f0"), _cfg.style.bg} : Style{Style::Default, 0, {}, {}};
       _win.buf.put(Pos{(_width / 2) - (title.size() / 2), 0}, Cell{1, style, title});
+    }
+  }
+}
+
+void App::draw_visualizer() {
+  if (_mono) {
+    if (_cl_swap) {swap_colors();}
+    draw_visualizer_impl(_bars_left.x, _bars_left.y, _bars_left.width, _bars_left.height, _bars_left);
+    if (_cl_swap) {swap_colors();}
+  }
+  else {
+    if (_block_vertical) {
+      if (_block_stack) {
+        if (_cl_swap) {swap_colors();}
+        draw_visualizer_impl(_bars_left.x, _bars_left.y, _bars_left.width, _bars_left.height, _bars_left);
+        if (_cl_swap) {swap_colors();}
+        _block_flip = !_block_flip;
+        draw_visualizer_impl(_bars_right.x, _bars_right.y, _bars_right.width, _bars_right.height, _bars_right);
+        _block_flip = !_block_flip;
+      }
+      else {
+        if (_cl_swap) {swap_colors();}
+        draw_visualizer_impl(_bars_left.x, _bars_left.y, _bars_left.width, _bars_left.height, _bars_left, true);
+        if (_cl_swap) {swap_colors();}
+        draw_visualizer_impl(_bars_right.x, _bars_right.y, _bars_right.width, _bars_right.height, _bars_right);
+      }
+    }
+    else {
+      if (_block_stack) {
+          _block_flip = !_block_flip;
+          if (_cl_swap) {swap_colors();}
+          draw_visualizer_impl(_bars_left.x, _bars_left.y, _bars_left.width, _bars_left.height, _bars_left);
+          if (_cl_swap) {swap_colors();}
+          _block_flip = !_block_flip;
+          draw_visualizer_impl(_bars_right.x, _bars_right.y, _bars_right.width, _bars_right.height, _bars_right);
+      }
+      else {
+        if (_cl_swap) {swap_colors();}
+          draw_visualizer_impl(_bars_left.x, _bars_left.y, _bars_left.width, _bars_left.height, _bars_left);
+          if (_cl_swap) {swap_colors();}
+          draw_visualizer_impl(_bars_right.x, _bars_right.y, _bars_right.width, _bars_right.height, _bars_right, true);
+      }
+    }
+  }
+}
+
+void App::draw_visualizer_impl(std::size_t x_begin, std::size_t y_begin, std::size_t width, std::size_t height, Bars& bars, bool const draw_reverse) {
+  if (!((_draw_freq || (_draw_freq && _draw_freq_always)) || (_draw_peak || (_draw_peak && _draw_peak_always)))) {
+    return;
+  }
+
+  // select vertical or horizontal character set
+  auto const& bar_char {_block_vertical ? _bar_vertical : _bar_horizontal};
+
+  // TODO improve alpha blending
+  // TODO fix corner color issue
+  // TODO use x color gradient along each block width
+  // TODO add stacked view but for mono channel
+  // TODO add single bar per channel mode
+  for (std::size_t x = 0; x < bars.size; ++x) {
+    auto const index = _block_reverse ? bars.size - 1 - x : x;
+    auto c = bars.freq[index];
+    auto p = bars.peak[index];
+
+    // calculate x position and bar width
+    // bar_width will be less than bars.bar_width if it partially overflows at the end or at the beginning if draw_reverse is true
+    int x_pos {0};
+    std::size_t bar_width {0};
+    if (draw_reverse) {
+      x_pos = width - bars.bar_width - bars.margin_lhs - ((x * bars.bar_width) + (x * bars.padding));
+      bar_width = x_pos + bars.bar_width > width ? width - x_pos : bars.bar_width;
+      if (x_pos < 0) {
+        bar_width += x_pos;
+        x_pos = 0;
+      }
+    }
+    else {
+      x_pos = bars.margin_lhs + (x * bars.bar_width) + (x * bars.padding);
+      bar_width = x_pos + bars.bar_width > width ? width - x_pos : bars.bar_width;
+    }
+
+    // draw bar
+    if (bar_width && ((_draw_freq && _draw_freq_always) || (_draw_freq && c > _threshold_min))) {
+      auto const vheight = bar_calc_height(c, height);
+      auto const bar_height = vheight / 8;
+      std::size_t const tip_index = (_block_flip ? 7 - (vheight % 8 ? vheight % 8 : 1) : vheight % 8);
+      bool y_bottom_drawn {false};
+
+      OB::Prism::HSLA init_color {_cfg.style.freq};
+      OB::Prism::HSLA init_color2 {_cfg.style.freq3};
+      if (_color) {
+        if (_cl_gradient_x && bars.size > 1 && _cfg.style.freq != _cfg.style.freq2) {
+          init_color = lerp(_cfg.style.freq, _cfg.style.freq2, static_cast<double>(x) / static_cast<double>(bars.size - 1));
+
+          if (_cl_gradient_y && _cfg.style.freq3 != _cfg.style.freq4) {
+            init_color2 = lerp(_cfg.style.freq3, _cfg.style.freq4, static_cast<double>(x) / static_cast<double>(bars.size - 1));
+          }
+        }
+      }
+      auto color = init_color;
+
+      // draw bar except for the top
+      for (std::size_t y = 0; y < bar_height; ++y) {
+        std::size_t const y_pos {_block_flip ? ((height - 1) - y) : y};
+
+        if (_color) {
+          if (_cl_gradient_y && height > 1) {
+            color = lerp(init_color, init_color2, static_cast<double>(y) / static_cast<double>(height - 1));
+          }
+
+          if (_alpha) {
+            auto const d = (static_cast<double>(y) + _alpha_blend) / static_cast<double>(height);
+            color.a(d >= _alpha_blend ? 255 : clamp(static_cast<int>(std::round(((d / _alpha_blend) * 255.0) + 16.0)), 16, 255));
+          }
+        }
+
+        if (_block_height_full) {
+          // draw full
+          if (_color) {
+            for (std::size_t i = 0; i < bar_width; ++i) {
+              auto xp = x_begin + x_pos + i;
+              auto yp = y_begin + y_pos;
+              if (!_block_vertical) {std::swap(xp, yp);}
+              _win.buf(Pos{xp, yp}, Cell{1, Style{Style::Bit_24, 0, color, _cfg.style.bg}, bar_char[7]});
+            }
+          }
+          else {
+            for (std::size_t i = 0; i < bar_width; ++i) {
+              auto xp = x_begin + x_pos + i;
+              auto yp = y_begin + y_pos;
+              if (!_block_vertical) {std::swap(xp, yp);}
+              _win.buf(Pos{xp, yp}, Cell{1, _style_default, bar_char[7]});
+            }
+          }
+        }
+        else if (bar_height <= bars.bar_height || y >= bar_height - bars.bar_height) {
+          // draw fixed height
+          if (!y_bottom_drawn) {
+            y_bottom_drawn = true;
+
+            if (y == 0 && bars.bar_height > bar_height) {
+              // draw regular
+              if (_color) {
+                for (std::size_t i = 0; i < bar_width; ++i) {
+                  auto xp = x_begin + x_pos + i;
+                  auto yp = y_begin + y_pos;
+                  if (!_block_vertical) {std::swap(xp, yp);}
+                  _win.buf(Pos{xp, yp}, Cell{1, Style{Style::Bit_24, 0, color, _cfg.style.bg}, bar_char[7]});
+                }
+              }
+              else {
+                for (std::size_t i = 0; i < bar_width; ++i) {
+                  auto xp = x_begin + x_pos + i;
+                  auto yp = y_begin + y_pos;
+                  if (!_block_vertical) {std::swap(xp, yp);}
+                  _win.buf(Pos{xp, yp}, Cell{1, _style_default, bar_char[7]});
+                }
+              }
+            }
+            else {
+              // draw partial bottom
+              if (_color) {
+                OB::Prism::RGBA fg;
+                OB::Prism::RGBA bg;
+
+                if (_block_flip) {
+                  fg = color;
+                  bg = _cfg.style.bg;
+                }
+                else {
+                  fg = _cfg.style.bg;
+                  bg = color;
+                }
+
+                for (std::size_t i = 0; i < bar_width; ++i) {
+                  auto xp = x_begin + x_pos + i;
+                  auto yp = y_begin + y_pos;
+                  if (!_block_vertical) {std::swap(xp, yp);}
+                  _win.buf(Pos{xp, yp}, Cell{1, Style{Style::Bit_24, 0, fg, bg}, bar_char[tip_index]});
+                }
+              }
+              else {
+                auto const style_attr = _block_flip ? Style::Null : Style::Reverse;
+                auto style = _style_default;
+                style.attr = style_attr;
+
+                for (std::size_t i = 0; i < bar_width; ++i) {
+                  auto xp = x_begin + x_pos + i;
+                  auto yp = y_begin + y_pos;
+                  if (!_block_vertical) {std::swap(xp, yp);}
+                  _win.buf(Pos{xp, yp}, Cell{1, style, bar_char[tip_index]});
+                }
+              }
+            }
+          }
+          else {
+            // draw regular
+            if (_color) {
+              for (std::size_t i = 0; i < bar_width; ++i) {
+                auto xp = x_begin + x_pos + i;
+                auto yp = y_begin + y_pos;
+                if (!_block_vertical) {std::swap(xp, yp);}
+                _win.buf(Pos{xp, yp}, Cell{1, Style{Style::Bit_24, 0, color, _cfg.style.bg}, bar_char[7]});
+              }
+            }
+            else {
+              for (std::size_t i = 0; i < bar_width; ++i) {
+                auto xp = x_begin + x_pos + i;
+                auto yp = y_begin + y_pos;
+                if (!_block_vertical) {std::swap(xp, yp);}
+                _win.buf(Pos{xp, yp}, Cell{1, _style_default, bar_char[7]});
+              }
+            }
+          }
+        }
+      }
+
+      // draw partial top
+      {
+        if (_color) {
+          if (_cl_gradient_y) {
+            color = lerp(init_color, init_color2, static_cast<double>(vheight) / static_cast<double>(height * 8));
+          }
+
+          if (_alpha) {
+            auto const d = (static_cast<double>(bar_height) + _alpha_blend) / static_cast<double>(height);
+            color.a(d >= _alpha_blend ? 255 : clamp(static_cast<int>(std::round(((d / _alpha_blend) * 255.0) + 16.0)), 16, 255));
+          }
+        }
+
+        std::size_t const y_pos {_block_flip ? (height - 1) - bar_height : bar_height};
+
+
+        if (_color) {
+          OB::Prism::RGBA fg;
+          OB::Prism::RGBA bg;
+
+          if (_block_flip) {
+            fg = _cfg.style.bg;
+            bg = color;
+          }
+          else {
+            fg = color;
+            bg = _cfg.style.bg;
+          }
+
+          for (std::size_t i = 0; i < bar_width; ++i) {
+            auto xp = x_begin + x_pos + i;
+            auto yp = y_begin + y_pos;
+            if (!_block_vertical) {std::swap(xp, yp);}
+            _win.buf(Pos{xp, yp}, Cell{1, Style{Style::Bit_24, 0, fg, bg}, bar_char[tip_index]});
+          }
+        }
+        else {
+          auto const style_attr = _block_flip ? Style::Reverse : Style::Null;
+          auto style = _style_default;
+          style.attr = style_attr;
+
+          for (std::size_t i = 0; i < bar_width; ++i) {
+            auto xp = x_begin + x_pos + i;
+            auto yp = y_begin + y_pos;
+            if (!_block_vertical) {std::swap(xp, yp);}
+            _win.buf(Pos{xp, yp}, Cell{1, style, bar_char[tip_index]});
+          }
+        }
+      }
+    }
+
+    // draw peak
+    if (bar_width && ((_draw_peak && _draw_peak_always) || (_draw_peak && p > _threshold_min))) {
+      if (p >= c) {
+        auto vheight = bar_calc_height(p, height);
+        auto bar_height = vheight / 8;
+        std::size_t const tip_index = (_block_flip ? 6 : 0);
+        std::size_t const y_pos {_block_flip ? (height - 1) - bar_height : bar_height};
+        if (y_begin + y_pos >= (_block_vertical ?_win.buf.size().y : _win.buf.size().x)) {continue;}
+        auto xp = x_begin + x_pos;
+        auto yp = y_begin + y_pos;
+        if (!_block_vertical) {std::swap(xp, yp);}
+        auto const& cell = _win.buf.col(Pos{xp, yp});
+
+        // draw only if peak does not overlap bar
+        if (cell.text.empty() || cell.text == " ") {
+          if (_color) {
+            OB::Prism::HSLA init_color {_cfg.style.freq3};
+            OB::Prism::HSLA init_color2 {_cfg.style.freq};
+            if (_cl_gradient_x && bars.size > 1 && _cfg.style.freq != _cfg.style.freq2) {
+              init_color = lerp(_cfg.style.freq2, _cfg.style.freq, static_cast<double>(x) / static_cast<double>(bars.size - 1));
+
+              if (_cl_gradient_y && _cfg.style.freq3 != _cfg.style.freq4) {
+                init_color2 = lerp(_cfg.style.freq4, _cfg.style.freq3, static_cast<double>(x) / static_cast<double>(bars.size - 1));
+              }
+            }
+            OB::Prism::HSLA color {init_color};
+
+            if (_cl_gradient_y && height > 1) {
+              color = lerp(init_color, init_color2, static_cast<double>(bar_height) / static_cast<double>(height - 1));
+            }
+
+            if (_alpha) {
+              auto const d = (static_cast<double>(bar_height) + _alpha_blend) / static_cast<double>(height);
+              color.a(d >= _alpha_blend ? 255 : clamp(static_cast<int>(std::round(((d / _alpha_blend) * 255.0) + 16.0)), 16, 255));
+            }
+
+            OB::Prism::RGBA fg;
+            OB::Prism::RGBA bg;
+
+            if (_block_flip) {
+              fg = _cfg.style.bg;
+              bg = color;
+            }
+            else {
+              fg = color;
+              bg = _cfg.style.bg;
+            }
+
+            for (std::size_t i = 0; i < bar_width; ++i) {
+              auto xp = x_begin + x_pos + i;
+              auto yp = y_begin + y_pos;
+              if (!_block_vertical) {std::swap(xp, yp);}
+              _win.buf(Pos{xp, yp}, Cell{1, Style{Style::Bit_24, 0, fg, bg}, bar_char[tip_index]});
+            }
+          }
+          else {
+            auto const style_attr = _block_flip ? Style::Reverse : Style::Null;
+            auto style = _style_default;
+            style.attr = style_attr;
+
+            for (std::size_t i = 0; i < bar_width; ++i) {
+              auto xp = x_begin + x_pos + i;
+              auto yp = y_begin + y_pos;
+              if (!_block_vertical) {std::swap(xp, yp);}
+              _win.buf(Pos{xp, yp}, Cell{1, style, bar_char[tip_index]});
+            }
+          }
+        }
+      }
     }
   }
 }
 
 void App::render() {
   if (_raw_output) {
-    _raw_file.open(_raw_filename, std::ios::out | std::ios::trunc);
-    if (!_raw_file.is_open()) {throw std::runtime_error("open failed");}
+    // _raw_file.open(_raw_filename, std::ios::out | std::ios::trunc);
+    // if (!_raw_file.is_open()) {throw std::runtime_error("open failed");}
     _win.render_file(_raw_file);
-    _raw_file.close();
+    // _raw_file.close();
   }
   else {
     _win.render();
@@ -1681,6 +1651,11 @@ void App::render() {
 
 void App::run() {
   await_signal();
+
+  if (!_raw_output) {
+    auto const is_term = Term::is_term(STDOUT_FILENO);
+    if (!is_term) {throw std::runtime_error("stdout is not a tty");}
+  }
 
   if (! _rec.available()) {
     throw std::runtime_error("recording device is unavailable");
@@ -1696,6 +1671,12 @@ void App::run() {
   _rec.high_pass(_high_pass);
   _rec.sample_rate(_sample_rate);
   _rec.device(_rec.device_default());
+  // for (auto const& device : _rec.devices()) {
+  //   if (OB::String::assert_rx(device, std::regex(".*monitor.*", std::regex::icase))) {
+  //     _rec.device(device);
+  //     break;
+  //   }
+  // }
   _rec.process_interval(sf::milliseconds(_interval));
 
   auto const buf_size = _size / 2;
@@ -1707,16 +1688,21 @@ void App::run() {
   _bars_right.peak.assign(buf_size, _threshold_min);
 
   if (_color) {
-    _style_base = Style{Style::Bit_24, Style::Null, _cfg.bg, _cfg.bg};
+    _style_base = Style{Style::Bit_24, Style::Null, _cfg.style.bg, _cfg.style.bg};
   }
   else {
     _style_base = Style{Style::Default, Style::Null, {}, {}};
   }
   _win.style_base = _style_base;
 
-  on_winch();
+  if (!_raw_output) {
+    _term_mode = std::make_unique<OB::Term::Mode>();
+  }
   screen_init();
-  await_read();
+  on_winch();
+  if (!_raw_output) {
+    await_read();
+  }
   _tick_begin = Clock::now();
   await_tick();
   _rec.start();
