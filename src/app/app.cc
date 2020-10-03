@@ -192,13 +192,9 @@ template<typename T>
 T scale_log(T const val, T const in_min, T const in_max, T const out_min, T const out_max) {
   assert(in_min <= in_max);
   assert(out_min <= out_max);
-  auto n = (out_min + (out_max - out_min) * ((val - in_min) / (in_max - in_min)));
-
-  auto b = std::log(out_max / out_min) / (out_max - out_min);
-  auto a = out_max / std::exp(b * out_max);
-  auto v = a * std::exp(b * n);
-
-  return v;
+  auto const b = std::log(out_max / out_min) / (in_max - in_min);
+  auto const a = out_max / std::exp(b * in_max);
+  return a * std::exp(b * val);
 }
 
 struct Note {
