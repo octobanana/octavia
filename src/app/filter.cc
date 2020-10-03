@@ -100,73 +100,65 @@ void savitzky_golay(std::vector<double>& bars, std::size_t size, std::size_t wid
   }
 }
 
-template<typename T>
-static constexpr T lerp(T const a, T const b, T const t) {
-  return a + (t * (b - a));
-}
-
-std::vector<double> resample(std::vector<double> out, std::size_t interpolate, std::size_t decimate) {
+// TODO optimize more, try to reduce vector size and copying
+// maybe try combining interpolate and decimate steps
+// in a loop, interpolate until buffer has enough values to decimate, max buffer size will then be `std::max(interpolate, decimate)` instead of `out.size() * std::max(interpolate, decimate)`
+std::vector<std::pair<double, double>> resample(std::vector<std::pair<double, double>> out, std::size_t interpolate, std::size_t decimate) {
   if (interpolate == decimate || (interpolate <= 1 && decimate <= 1)) {return out;}
-
-  // Filter::Low_Pass filter_interpolate;
-  // Filter::Low_Pass filter_decimate;
-  // filter_interpolate.init(interpolate, interpolate / 2, 1.0);
-  // filter_decimate.init(decimate, decimate / 2 , 1.0);
 
   auto const d = std::gcd(interpolate, decimate);
   interpolate /= d;
   decimate /= d;
 
+  std::vector<std::pair<double, double>> vec;
+  vec.reserve(out.size() * std::max(interpolate, decimate));
+
   if (interpolate > 1) {
-    std::vector<double> vec;
     auto const n = interpolate;
+
+    // for (std::size_t i = 0; i < out.size(); ++i) {
+    //   auto const val = out[i];
+    //   for (std::size_t j = 0; j < n; ++j) {
+    //     vec.emplace_back(val);
+    //   }
+    // }
+
     for (std::size_t i = 0; i + 1 < out.size(); ++i) {
       auto const val = out[i];
       auto const next = out[i + 1];
-      auto const f = (val - next) / n;
+      auto const f = (val.first - next.first) / static_cast<double>(n);
+      auto const g = (val.second - next.second) / static_cast<double>(n);
       for (std::size_t j = 0; j < n; ++j) {
-        vec.emplace_back(val + (f * j));
+        vec.emplace_back(val.first - (f * static_cast<double>(j)), val.second - (g * static_cast<double>(j)));
       }
     }
     auto const last = vec.back();
     for (std::size_t j = 0; j < n; ++j) {
       vec.emplace_back(last);
     }
+
     out = vec;
+    vec.clear();
   }
 
-  // for (auto& e : out) {
-  //   e = filter_decimate.process(filter_interpolate.process(e));
-  // }
-
   if (decimate > 1) {
-    std::vector<double> vec;
     auto const n = decimate;
+    std::vector<std::pair<double, double>> tmp;
+    tmp.reserve(n);
+    double prev = 0;
     for (std::size_t i = 0; i + n - 1 < out.size(); i += n) {
-      // double val = 0;
-      // for (std::size_t j = 0; j < n; ++j) {
-      //   val += out[i + j];
-      // }
-      // vec.emplace_back(val / n);
-
-      // auto const val = out[i];
-      // vec.emplace_back(val);
-
-      // auto const val = out[i];
-      // auto min = val;
-      // auto max = val;
-      // for (std::size_t j = 1; j < n; ++j) {
-      //   min = std::min(min, out[i + j]);
-      //   max = std::max(max, out[i + j]);
-      // }
-      // vec.emplace_back(lerp(min, max, 0.5));
-
-      auto const val = out[i];
-      auto max = val;
-      for (std::size_t j = 1; j < n; ++j) {
-        max = std::max(max, out[i + j]);
+      tmp.assign(out.begin() + i, out.begin() + i + n);
+      std::sort(tmp.begin(), tmp.end(), [](auto const& lhs, auto const& rhs) {return lhs.first > rhs.first;});
+      tmp.erase(std::unique(tmp.begin(), tmp.end()), tmp.end());
+      std::size_t k = 0;
+      for (; k < tmp.size(); ++k) {
+        if (tmp[k].second > prev) {
+          break;
+        }
       }
-      vec.emplace_back(max);
+      if (k == tmp.size()) {--k;}
+      vec.emplace_back(tmp[k]);
+      prev = tmp[k].second;
     }
     out = vec;
   }

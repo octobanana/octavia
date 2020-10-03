@@ -47,11 +47,11 @@ SOFTWARE.
 #define APP_FILTER_HH
 
 #include <cmath>
-#include <cassert>
 #include <cstddef>
 
 #include <vector>
 #include <numeric>
+#include <utility>
 
 namespace Filter
 {
@@ -60,7 +60,7 @@ double constexpr Pi {3.1415926535897932384626433832795028841971};
 
 void savitzky_golay(std::vector<double>& bars, std::size_t size, std::size_t width = 3, double const threshold = 0.0);
 
-std::vector<double> resample(std::vector<double> out, std::size_t interpolate, std::size_t decimate);
+std::vector<std::pair<double, double>> resample(std::vector<std::pair<double, double>> out, std::size_t interpolate, std::size_t decimate);
 
 double center_frequency(double const low, double const high);
 double q_factor_band_pass(double const low, double const high);
