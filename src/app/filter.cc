@@ -47,27 +47,52 @@ SOFTWARE.
 
 #include "ob/ring.hh"
 
+#include <cassert>
+
+#include <string>
+#include <algorithm>
+#include <stdexcept>
+
+
 namespace Filter
 {
 
+using namespace std::string_literals;
+
+// TODO pass part instead of width
 void savitzky_golay(std::vector<double>& bars, std::size_t size, std::size_t width, double const threshold) {
-  if (size == 0 || width == 0) {return;}
-  if (width >= size) {width = size - 1;}
-  auto const part = static_cast<std::size_t>(std::trunc(width / 2.0));
-  if (part == 0) {return;}
+  if (width < 3 || width % 2 != 1) {
+    throw std::logic_error("savitzky_golay: invalid width '"s + std::to_string(width) + "', width must be odd and >= 3"s);
+  }
+  if (size <= 2) {return;}
+  auto part = (width - 1) / 2;
+  if (size < part + 1) {
+    part = size - 1;
+    width = part * 2 + 1;
+  }
+  auto const c = 1.0 / width;
 
-  OB::ring_vector<double> win {bars.begin(), bars.begin() + static_cast<long int>(width)};
-  auto const c = 1.0 / (part * 2 + 1);
-  auto const end = size - part;
+  OB::ring_vector<double> win (width);
+  for (std::size_t i = part; i > 0; --i) {
+    win.push(bars[i]);
+  }
+  for (std::size_t i = 0; i < part; ++i) {
+    win.push(bars[i]);
+  }
 
-  for (std::size_t i = part; i < end; ++i) {
+  for (std::size_t i = 0; i < size; ++i) {
     double res {0};
+
+    if (i > size - 1 - part) {
+      win.push(bars[size - 1 - (i - (size - 1 - part))]);
+    }
+    else {
+      win.push(bars[i + part]);
+    }
 
     for (std::size_t j = 0; j < width; ++j) {
       res += (win[j] * c) + j - part;
     }
-
-    win.push(bars[i + part + 1]);
 
     if (threshold == 0.0 || std::abs(bars[i] - res) < threshold) {
       bars[i] = res;
