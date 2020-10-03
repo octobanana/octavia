@@ -463,12 +463,12 @@ bool App::on_read(Read::Key& ctx) {
     }
 
     case 'w': {
-      _block_width = clampc(static_cast<int>(_block_width) + 1, 1, 8);
+      _block_width = clampc(static_cast<int>(_block_width) + 1, 1, 32);
       return true;
     }
 
     case 'W': {
-      _block_width = clampc(static_cast<int>(_block_width) - 1, 1, 8);
+      _block_width = clampc(static_cast<int>(_block_width) - 1, 1, 32);
       return true;
     }
 
