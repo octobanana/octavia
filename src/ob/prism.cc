@@ -637,8 +637,8 @@ HSLA& HSLA::from_rgba(RGBA const& rgba) {
   }
 
   h(static_cast<int>(h_ * 360));
-  s(std::round(s_ * 100));
-  l(std::round(l_ * 100));
+  s(s_ * 100);
+  l(l_ * 100);
   a(rgba.a());
   return *this;
 }
