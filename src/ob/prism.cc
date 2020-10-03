@@ -621,7 +621,7 @@ HSLA& HSLA::from_rgba(RGBA const& rgba) {
   }
   else {
     float const v {max - min};
-    s_ = (l_ > 0.5f) ? v / (2 - (max - min)) : v / (max + min);
+    s_ = v / (1.0f - std::abs((max + min) - 1.0f));
 
     if (almost_equal(max, r)) {
       h_ = (g - b) / v + (g < b ? 6 : 0);
