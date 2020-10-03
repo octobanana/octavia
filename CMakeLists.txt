@@ -76,7 +76,9 @@ project (${OB_TARGET} VERSION ${OB_VERSION} LANGUAGES CXX)
 
 message ("-- Building ${OB_TARGET} ${OB_VERSION} in ${CMAKE_BUILD_TYPE} mode:")
 message ("     System: ${CMAKE_SYSTEM}")
+message ("     CMake: ${CMAKE_VERSION}")
 message ("     CXX compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+message ("     Path: $ENV{PATH}")
 
 set (OB_COMPILER_VERSION_GNU "8.0.0")
 set (OB_COMPILER_VERSION_CLANG "7.0.0")
