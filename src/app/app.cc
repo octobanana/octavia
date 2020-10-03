@@ -197,37 +197,71 @@ T scale_log(T const val, T const in_min, T const in_max, T const out_min, T cons
   return a * std::exp(b * val);
 }
 
-struct Note {
-  std::size_t tone {0};
-  std::size_t octave {0};
+class Note {
+public:
+  Note(double const freq, std::size_t const scale = 12, double const a4 = 440.0) {
+    assert(freq > 1);
+    assert(scale == 12 || scale == 24);
+    _scale = scale;
+    int const tones {static_cast<int>(std::round(std::log(freq / a4) / std::log(std::pow(2.0, 1.0 / static_cast<double>(_scale)))) + (57 * (_scale / 12)))};
+    _tone = static_cast<std::size_t>(tones % _scale);
+    _octave = static_cast<std::size_t>(tones / _scale);
+  }
+
+  friend bool operator==(Note const& lhs, Note const& rhs);
+  friend bool operator!=(Note const& lhs, Note const& rhs);
 
   std::string str() {
-    static std::unordered_map<int, std::string> const c_offset {
-      { 0, "C"}, { 1, "C#"},
-      { 2, "D"}, { 3, "D#"},
-      { 4, "E"},
-      { 5, "F"}, { 6, "F#"},
-      { 7, "G"}, { 8, "G#"},
-      { 9, "A"}, {10, "A#"},
-      {11, "B"},
-    };
-    return c_offset.at(tone) + std::to_string(octave);
+    if (_scale == 12) {
+      return _semi_tones.at(_tone) + std::to_string(_octave);
+    }
+    return _quarter_tones.at(_tone) + std::to_string(_octave);
   }
+
+  std::size_t scale() {
+    return _scale;
+  }
+
+  std::size_t tone() {
+    return _tone;
+  }
+
+  std::size_t octave() {
+    return _octave;
+  }
+
+private:
+  std::size_t _scale {0};
+  std::size_t _tone {0};
+  std::size_t _octave {0};
+
+  inline static std::unordered_map<std::size_t, std::string> const _semi_tones {
+    { 0, "C"}, { 1, "C#"},
+    { 2, "D"}, { 3, "D#"},
+    { 4, "E"},
+    { 5, "F"}, { 6, "F#"},
+    { 7, "G"}, { 8, "G#"},
+    { 9, "A"}, {10, "A#"},
+    {11, "B"},
+  };
+
+  inline static std::unordered_map<std::size_t, std::string> const _quarter_tones {
+    { 0, "C  "}, { 1, "C+ "}, { 2, "C #"}, { 3, "C#+"},
+    { 4, "D  "}, { 5, "D+ "}, { 6, "D #"}, { 7, "D#+"},
+    { 8, "E  "}, { 9, "E+ "},
+    {10, "F  "}, {11, "F+ "}, {12, "F #"}, {13, "F#+"},
+    {14, "G  "}, {15, "G+ "}, {16, "G #"}, {17, "G#+"},
+    {18, "A  "}, {19, "A+ "}, {20, "A #"}, {21, "A#+"},
+    {22, "B  "}, {23, "B+ "},
+  };
 };
 
 bool operator==(Note const& lhs, Note const& rhs) {
-  return (lhs.tone == rhs.tone) && (lhs.octave == rhs.octave);
+  return (lhs._scale == rhs._scale) && (lhs._tone == rhs._tone) && (lhs._octave == rhs._octave);
 }
 
 bool operator!=(Note const& lhs, Note const& rhs) {
   return !(lhs == rhs);
-}
-
-Note freq_to_note(double const freq, double const a4 = 440.0) {
-  // if (freq <= 0) {throw std::runtime_error("invalid freq '" + std::to_string(freq) + "'");}
-  if (freq <= 0) {return Note{0, 0};}
-  int const semitones {static_cast<int>(std::round(std::log(freq / a4) / std::log(std::pow(2.0, 1.0 / 12.0))) + 57)};
-  return Note{static_cast<std::size_t>(semitones % 12), static_cast<std::size_t>(semitones / 12)};
 }
 
 App::App(OB::Parg const& pg) : _pg {pg} {
