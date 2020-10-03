@@ -74,8 +74,6 @@ int main(int argc, char** argv) {
     Term::is_term(STDOUT_FILENO) : pg.get<std::string>("colour") == "on";
 
   try {
-    if (!is_term) {throw std::runtime_error("stdout is not a tty");}
-
     App app {pg};
     app.run();
   }
