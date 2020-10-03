@@ -557,7 +557,7 @@ bool operator!=(HSLA const& lhs, HSLA const& rhs) {
 }
 
 std::ostream& operator<<(std::ostream& os, HSLA const& obj) {
-  os << std::fixed << std::setprecision(2) << "hsla(" << obj.h() << ", " << obj.s() << "%, " << obj.l() << ", " << (std::round((static_cast<float>(obj.a()) / 255) * 100) * 0.01) << ")";
+  os << std::fixed << std::setprecision(2) << "hsla(" << obj.h() << ", " << obj.s() << "%, " << obj.l() << "%, " << (std::round((static_cast<float>(obj.a()) / 255) * 100) * 0.01) << ")";
   return os;
 }
 
