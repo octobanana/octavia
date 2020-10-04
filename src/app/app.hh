@@ -195,69 +195,67 @@ private:
     };
   };
 
-  // TODO move all config variables into _cfg
-  // config variables
-  int _fps                   {30};
-  // int _channel            {Channel_Type::stereo};
-  bool _sort_log             {true};
-  std::size_t _octave_scale  {24};
-  int _filter                {Filter_Type::none};
-  double _filter_threshold   {0.10};
-  std::size_t _filter_size   {3};
-  bool _mono                 {false};
-  bool _overlay              {false};
-  bool _color                {false};
-  bool _alpha                {false};
-  double _alpha_blend        {0.3};
-  double _cl_shift           {0.0};
-  bool _cl_gradient_x        {true};
-  bool _cl_gradient_y        {true};
-  bool _cl_swap              {false};
-  bool _bar_swap             {false};
-  bool _block_flip           {false};
-  bool _block_stack          {true};
-  bool _block_reverse        {false};
-  bool _block_vertical       {true};
-  bool _peak_reverse         {false};
-  bool _draw_freq            {true};
-  bool _draw_peak            {true};
-  bool _draw_freq_always     {true};
-  bool _draw_peak_always     {false};
-  bool _block_width_dynamic  {false};
-  bool _block_height_dynamic {true};
-  bool _block_height_full    {true};
-  bool _block_height_linear  {true};
-  double _block_width        {1.0};
-  double _block_height       {0.25};
-  std::size_t _block_padding {1};
-  bool _speed_freq_unique    {true};
-  bool _speed_peak_unique    {false};
-  double _speed_freq_up      {0.999999};
-  double _speed_freq_down    {0.98};
-  double _speed_peak_down    {0.20};
-  double _threshold_min      {-60.0};
-  double _threshold_max      {-20.0};
-  double _interval           {(1000.0 / _fps) * 0.2};
-  std::size_t _size          {2048};
-  std::size_t _sample_rate   {16000};
-  std::size_t _low_pass      {4000};
-  std::size_t _high_pass     {40};
-
   struct Config {
+    int fps                   {30};
+    // int channel            {Channel_Type::stereo};
+    bool sort_log             {true};
+    std::size_t octave_scale  {24};
+    int filter                {Filter_Type::none};
+    double filter_threshold   {0.10};
+    std::size_t filter_size   {3};
+    bool mono                 {false};
+    bool overlay              {false};
+    bool color                {false};
+    bool alpha                {false};
+    double alpha_blend        {0.3};
+    double cl_shift           {0.0};
+    bool cl_gradient_x        {true};
+    bool cl_gradient_y        {true};
+    bool cl_swap              {false};
+    bool bar_swap             {false};
+    bool block_flip           {false};
+    bool block_stack          {true};
+    bool block_reverse        {false};
+    bool block_vertical       {true};
+    bool peak_reverse         {false};
+    bool draw_freq            {true};
+    bool draw_peak            {true};
+    bool draw_freq_always     {true};
+    bool draw_peak_always     {false};
+    bool block_width_dynamic  {false};
+    bool block_height_dynamic {true};
+    bool block_height_full    {true};
+    bool block_height_linear  {true};
+    double block_width        {1.0};
+    double block_height       {0.25};
+    std::size_t block_padding {1};
+    bool speed_freq_unique    {true};
+    bool speed_peak_unique    {false};
+    double speed_freq_up      {0.999999};
+    double speed_freq_down    {0.98};
+    double speed_peak_down    {0.20};
+    double threshold_min      {-60.0};
+    double threshold_max      {-20.0};
+    double interval           {(1000.0 / fps) * 0.2};
+    std::size_t size          {2048};
+    std::size_t sample_rate   {16000};
+    std::size_t low_pass      {4000};
+    std::size_t high_pass     {40};
+
     struct Style {
       // NOTE for using 4 color gradients
       // when the colors are converted to HSLA, all hues must be within 180 degrees of each other, else the gradient will become distorted
 
       // background
-      OB::Prism::RGBA bg    {OB::Prism::Hex("1b1e24")};
+      OB::Prism::RGBA bg      {OB::Prism::Hex("1b1e24")};
       // bottom left
-      OB::Prism::HSLA freq  {OB::Prism::Hex("4feae7")};
+      OB::Prism::HSLA freq    {OB::Prism::Hex("4feae7")};
       // bottom right
-      OB::Prism::HSLA freq2 {OB::Prism::Hex("f34b7d")};
+      OB::Prism::HSLA freq2   {OB::Prism::Hex("f34b7d")};
       // top left
-      OB::Prism::HSLA freq3 {freq2};
+      OB::Prism::HSLA freq3   {freq2};
       // top right
-      OB::Prism::HSLA freq4 {freq};
+      OB::Prism::HSLA freq4   {freq};
     } style;
   } _cfg;
 
@@ -287,10 +285,10 @@ private:
   std::chrono::time_point<Clock> _tick_end {(Clock::time_point::min)()};
   int _fps_actual {0};
   int _fps_dropped {0};
-  Tick _tick {static_cast<Tick>(1000000000 / _fps)};
+  Tick _tick {static_cast<Tick>(1000000000 / _cfg.fps)};
   Timer _timer {_io};
 
-  Record _rec {_size};
+  Record _rec {_cfg.size};
 
   std::unique_ptr<OB::Term::Mode> _term_mode;
   Window _win;
