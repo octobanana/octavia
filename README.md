@@ -28,9 +28,10 @@ __octavia__ is an audio visualizer for the terminal.
 
 ### Features
 * Capture and visualize audio in real-time
-* Keybindings allow interactive configuration during runtime
+* Key bindings allow interactive configuration during runtime
 * Displays the frequency spectrum as bars and peaks
-* Each bar represents a logarithmically spaced frequency range
+* Each bar represents a range in frequency
+* Bar frequencies can be sorted either logarithmically or by musical notes
 * The height of each bar represents the magnitude of the frequency range in decibels
 * The bars and peaks move at different speeds
 * Uses unicode block elements for smooth transitions
@@ -39,6 +40,7 @@ __octavia__ is an audio visualizer for the terminal.
 * Shared or stacked stereo layout
 * Fixed height bar mode
 * True colour support
+* colour gradient along the x-axis and y-axis with support for up to 4 different colours
 * Low-high or high-low frequency ordering
 * Left/right stereo channel layout can be swapped
 * Configurable frames per second (fps)
@@ -53,7 +55,7 @@ __octavia__ is an audio visualizer for the terminal.
 ### Future Features
 * UI overlay
 * Custom colours
-* Custom keybindings
+* Custom key bindings
 * Command prompt
 * Config file support
 * Config file live reload
@@ -66,19 +68,25 @@ or as a plain text file in `./doc/help.txt`.
 ### Getting Started
 Run `octavia` and play some audio!
 
-Press `?` to view the keybindings section of the help output, press `q` to return to the program.  
-Press `q` to quit.  
-Press `o` to toggle the debug overlay.  
-Press `a` to toggle vertical/horizontal layout.  
-Press `s` to toggle mono/stereo audio capture.  
-Press `d` to toggle shared/stacked layout.  
-Press `f` to toggle flipped layout.  
-Press `z` or `x` to toggle bars/peaks on/off.  
-Press `g` to cycle through available smoothing filters.  
-Press `h` or `H` to change the minimum frequency threshold.  
-Press `j` or `J` to change the minimum decibel threshold.  
-Press `k` or `K` to change the maximum decibel threshold.  
-Press `l` or `L` to change the maximum frequency threshold.  
+If __octavia__ is not responding to audio being played, refer to the [Troubleshooting](#troubleshooting) section.
+
+Here are a few key bindings to get started with:  
+* Press `?` to view the key bindings section of the help output, press `q` to return back to __octavia__.
+* Press `q` to quit the program
+* Press `<backspace>` to reset all settings to the default state.
+* Press `o` to toggle the debug overlay
+* Press `c` to toggle colour.
+* Press `v` to randomize the colour scheme.
+* Press `a` to toggle vertical/horizontal layout.
+* Press `s` to toggle mono/stereo audio capture
+* Press `d` to toggle shared/stacked layout
+* Press `f` to toggle flipped layout.
+* Press `z` or `x` to toggle bars/peaks on/off.
+* Press `g` to cycle through available smoothing filters.
+* Press `h` or `H` to change the minimum frequency threshold.
+* Press `j` or `J` to change the minimum decibel threshold.
+* Press `k` or `K` to change the maximum decibel threshold.
+* Press `l` or `L` to change the maximum frequency threshold.
 
 ## Pre-Build
 This section describes what environments this program may run on,
@@ -156,7 +164,13 @@ The included shell script will install the project in release mode using the `in
 ```
 
 ## Troubleshooting
-If __octavia__ is not responding to audio being played, make sure your systems default audio capture stream is set to monitor of built-in audio analog stereo, or something similar. On Linux, this can be done with the program __pavucontrol__. While __octavia__ is running, launch __pavucontrol__. Within __pavucontrol__, select the recording tab, then choose monitor of built-in audio analog stereo in the drop down for the capture stream of __octavia__.
+If __octavia__ is not responding to audio being played, make sure your systems default audio capture stream is set to monitor of built-in audio analog stereo, or something similar. On Linux, this can be done with the program __pavucontrol__. While __octavia__ is running, launch __pavucontrol__. Within __pavucontrol__, select the recording tab, then choose `Monitor of Built-in Audio Analog Stereo` in the drop down for the capture stream of __octavia__. Also, make sure the volume slider is set to `100% (0.00 dB)`.
+
+If the audio being played is very quiet, such as classical music, try decreasing the minimum db threshold with `J` and decreasing the maximum db threshold with `k`.
+
+If you want greater vertical movement of the bars, try increasing the minimum db threshold with `j` and decreasing the maximum db threshold with `k`.
+
+If the bars are constantly touching the top, try increasing the maximum db threshold with `K`.
 
 ## License
 This project is licensed under the MIT License.
