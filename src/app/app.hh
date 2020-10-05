@@ -232,7 +232,7 @@ private:
     bool speed_freq_unique    {true};
     bool speed_peak_unique    {false};
     double speed_freq_up      {0.999999};
-    double speed_freq_down    {0.98};
+    double speed_freq_down    {0.99};
     double speed_peak_down    {0.20};
     double threshold_min      {-60.0};
     double threshold_max      {-20.0};
