@@ -531,6 +531,16 @@ bool App::on_read(Read::Key& ctx) {
       return true;
     }
 
+    case Key::Left: {
+      _overlay_index = clamp(static_cast<int>(_overlay_index) - 1, 0, 64);
+      return true;
+    }
+
+    case Key::Right: {
+      _overlay_index = clamp(static_cast<int>(_overlay_index) + 1, 0, 64);
+      return true;
+    }
+
     case '?': {
       auto const recording = _rec.recording();
       if (recording) {
@@ -1220,8 +1230,8 @@ void App::draw_overlay() {
         + " | fps "s + std::to_string(_cfg.fps)
       };
       if (title.size() > _width) {
-        title = title.substr(0, _width - 1);
-        title += ">";
+        _overlay_index = std::min(_overlay_index, (title.size() - _width));
+        title = title.substr(_overlay_index, _width);
       }
       auto style = _cfg.color ? Style{Style::Bit_24, 0, OB::Prism::Hex("f0f0f0"), _cfg.style.bg} : Style{Style::Default, 0, {}, {}};
       _win.buf.put(Pos{(_width / 2) - (title.size() / 2), 0}, Cell{1, style, title});

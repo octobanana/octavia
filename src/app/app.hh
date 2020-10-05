@@ -264,6 +264,8 @@ private:
 
   double _cl_delta {0.0};
 
+  std::size_t _overlay_index {0};
+
   std::array<std::string, 8> _bar_vertical {"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"};
   std::array<std::string, 8> _bar_horizontal {"▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"};
 
