@@ -60,7 +60,7 @@ inline bool program_color(std::string_view color);
 inline void program_init(OB::Parg& pg);
 
 inline void program_init(OB::Parg& pg) {
-  pg.name("octavia").version("0.1.1 (10.09.2020)");
+  pg.name("octavia").version("0.1.2 (04.10.2020)");
   pg.description("octobanana's customizable text-based audio visualization interactive application.");
 
   pg.usage("");
